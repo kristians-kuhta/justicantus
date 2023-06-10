@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Platform is Ownable {
   struct Artist {
-    address account;
     uint256 id;
     string name;
   }
