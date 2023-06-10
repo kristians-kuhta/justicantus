@@ -52,4 +52,74 @@ describe("Platform", function () {
       ).not.to.equal('0');
     });
   });
+
+  describe('Song registration', function () {
+    it('registers a song', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance);
+
+      await expect(
+        platform.connect(firstAccount).registerArtist('First Artist')
+      ).to.emit(platform, 'ArtistRegistered').withArgs(
+        firstAccount.address,
+        anyUint, // The artist's unique ID
+        'First Artist'
+      );
+
+      const ipfsID = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
+      const registerSongResponse = platform.connect(firstAccount).registerSong(ipfsID);
+
+      await expect(registerSongResponse).to.emit(platform, 'SongRegistered').withArgs(
+        firstAccount.address,
+        anyUint, // The song's unique ID
+        ipfsID
+      );
+
+      const registerTx = await (await registerSongResponse).wait();
+      const songId = registerTx.logs[0].topics[2];
+
+      expect(
+        await platform.getSongUri(songId)
+      ).to.equal(ipfsID);
+
+      expect(
+        (await platform.getArtistSongId(firstAccount.address, 0)).toString()
+      ).to.equal('321');
+
+      expect(
+        (await platform.getArtistSongsCount(firstAccount.address)).toString()
+      ).to.equal('1');
+    });
+
+    it('reverts when registering a song without providing uri', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance);
+
+      await expect(
+        platform.connect(firstAccount).registerArtist('First Artist')
+      ).to.emit(platform, 'ArtistRegistered').withArgs(
+        firstAccount.address,
+        anyUint, // The artist's unique ID
+        'First Artist'
+      );
+
+      await expect(
+        platform.connect(firstAccount).registerSong('')
+      ).to.be.revertedWithCustomError(platform, 'SongUriRequired');
+    });
+
+    it('reverts when registering song from an account that is not registered as an artist', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance);
+
+      await expect(
+        platform.connect(firstAccount).registerArtist('First Artist')
+      ).to.emit(platform, 'ArtistRegistered').withArgs(
+        firstAccount.address,
+        anyUint, // The artist's unique ID
+        'First Artist'
+      );
+
+      await expect(
+        platform.registerSong('something')
+      ).to.be.revertedWithCustomError(platform, 'NotARegisteredArtist');
+    });
+  });
 });
