@@ -9,6 +9,7 @@ describe("Platform", function () {
     // TODO: create and fund oracle subscription here
     const BASE_FEE = '100000000000000000';
     const GAS_PRICE_LINK = '1000000000';
+    const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
 
     const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2Mock");
     const coordinator = await Coordinator.deploy(BASE_FEE, GAS_PRICE_LINK);
@@ -19,7 +20,7 @@ describe("Platform", function () {
     const { subId } = subTx.events[0].args;
 
     // Fund the subscription
-    await (await coordinator.fundSubscription(subId, 10)).wait();
+    await (await coordinator.fundSubscription(subId, SUBSCRIPTION_BALANCE)).wait();
 
     const Platform = await ethers.getContractFactory("Platform");
     const platform = await Platform.deploy(
