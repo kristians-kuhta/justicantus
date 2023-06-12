@@ -2,34 +2,71 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
 
-contract Platform is Ownable {
-  struct Artist {
-    uint256 id;
-    string name;
+contract Platform is Ownable, VRFConsumerBaseV2 {
+  enum ResourceType {
+    Unknown,
+    Artist,
+    Song
   }
 
-  event ArtistRegistered(
-    address indexed account,
-    uint256 indexed id,
-    string indexed name
-  );
+  struct Registration {
+    bool completed;
 
-  event SongRegistered(
-    address indexed artist,
+    // Defaults to unknown,
+    // which is also how we can tell if registration has been created
+    ResourceType resourceType;
+
+    address account;
+    uint256 generatedId;
+    // Data is either artist name or song uri
+    string data;
+  }
+
+  // Data is either artist name or song uri
+  event ResourceRegistered(
+    address indexed account,
+    ResourceType indexed resourceType,
     uint256 indexed id,
-    string indexed uri
+    string data
   );
 
   error ArtistNameRequired();
   error SongUriRequired();
   error NotARegisteredArtist();
 
-  mapping(address account => Artist data) private artists;
+  // TODO: review which ones of these mappings need to be public
+  mapping(uint256 id => string name) public artistNames;
+  mapping(address account => uint256 id) public artistIds;
 
-  mapping(uint256 id => string uri) private songURIs;
-  mapping(address account => uint256[] ids) private songIds;
+  mapping(uint256 id => string uri) public songURIs;
+  mapping(address account => uint256[] ids) public songIds;
   mapping(address account => uint256 count) public songsCount;
+
+  // Requests are used for generating IDs (both for an artists and a song)
+  mapping(uint256 requestId => Registration registration) private registrations;
+
+  VRFCoordinatorV2Interface immutable vrfCoordinator;
+  uint64 private immutable subscriptionId;
+  bytes32 private immutable keyHash;
+
+  // TODO: make sure that this makes sense after finalizing the `fulfillRandomWords()` function
+  uint32 private constant CALLBACK_GAS_LIMIT = 200000;
+  uint16 private constant REQUEST_CONFIRMATIONS = 3;
+  uint32 private constant NUM_WORDS = 1;
+
+  constructor(
+    address _vrfCoordinator,
+    uint64 _subscriptionId,
+    bytes32 _keyHash
+  ) VRFConsumerBaseV2(_vrfCoordinator) {
+    vrfCoordinator = VRFCoordinatorV2Interface(_vrfCoordinator);
+    subscriptionId = _subscriptionId;
+    keyHash = _keyHash;
+  }
 
   function _requireArtistName(string calldata name) internal view {
     if (bytes(name).length == 0) {
@@ -44,7 +81,7 @@ contract Platform is Ownable {
   }
 
   function _requireRegisteredArtist() internal view {
-    if (artists[msg.sender].id == 0) {
+    if (artistIds[msg.sender] == 0) {
       revert NotARegisteredArtist();
     }
   }
@@ -52,37 +89,93 @@ contract Platform is Ownable {
   function registerArtist(string calldata name) external {
     _requireArtistName(name);
 
-    Artist storage artist = artists[msg.sender];
-    artist.id = _generateArtistId();
-    artist.name = name;
+    _createResourceRegistration(ResourceType.Artist, name);
+  }
 
-    emit ArtistRegistered(msg.sender, artist.id, name);
+  function _completeArtistRegistration(Registration memory registration) internal {
+    artistNames[registration.generatedId] = registration.data;
+    artistIds[registration.account] = registration.generatedId;
+
+    emit ResourceRegistered(
+      registration.account,
+      ResourceType.Artist,
+      registration.generatedId,
+      registration.data
+    );
+  }
+
+  function _completeSongRegistration(Registration memory registration) internal {
+    songURIs[registration.generatedId] = registration.data;
+    songIds[registration.account].push(registration.generatedId);
+    songsCount[registration.account]++;
+
+    emit ResourceRegistered(
+      registration.account,
+      ResourceType.Song,
+      registration.generatedId,
+      registration.data
+    );
+  }
+
+  function fulfillRandomWords(
+    uint256 _requestId,
+    uint256[] memory _randomWords
+  ) internal override {
+
+    Registration storage registration = registrations[_requestId];
+    require(!registration.completed);
+
+    registration.completed = true;
+
+    // TODO: consider what to do if generated IDs clash.
+    //       AFAIK the possibility is probably extremely low.
+    registration.generatedId = _randomWords[0];
+
+    if (registration.resourceType == ResourceType.Artist) {
+      _completeArtistRegistration(registration);
+    } else if (registration.resourceType == ResourceType.Artist) {
+      _completeSongRegistration(registration);
+    } else {
+      revert('Unsupported registration');
+    }
+  }
+
+  function _createResourceRegistration(
+    ResourceType resourceType,
+    string calldata data
+  ) internal {
+    // Will revert if subscription is not set and funded.
+    uint256 requestId = vrfCoordinator.requestRandomWords(
+        keyHash,
+        subscriptionId,
+        REQUEST_CONFIRMATIONS,
+        CALLBACK_GAS_LIMIT,
+        NUM_WORDS
+    );
+
+    // TODO: Consider checking for existing requestIds.
+    //       Failing to do this this could lead to overriding existing registrations.
+    //       On the other hand the possibility that this would happen is probably extremely low.
+    Registration storage registration = registrations[requestId];
+
+    registration.resourceType = resourceType;
+    registration.account = msg.sender;
+    registration.data = data;
   }
 
   function registerSong(string calldata uri) external {
     _requireUri(uri);
     _requireRegisteredArtist();
 
-    uint256 songId = _generateSongId();
-
-    // Regenerate the song id if taken
-    while (bytes(songURIs[songId]).length > 0) {
-      songId = _generateSongId();
-    }
-
-    songURIs[songId] = uri;
-    songIds[msg.sender].push(songId);
-    songsCount[msg.sender]++;
-
-    emit SongRegistered(msg.sender, songId, uri);
+    _createResourceRegistration(ResourceType.Song, uri);
   }
 
   function getArtistId(address account) external view returns (uint256) {
-    return artists[account].id;
+    return artistIds[account];
   }
 
   function getArtistName(address account) external view returns (string memory) {
-    return artists[account].name;
+    return artistNames[artistIds[account]];
   }
 
   function getSongUri(uint256 songId) external view returns (string memory) {
@@ -95,15 +188,5 @@ contract Platform is Ownable {
 
   function getArtistSongsCount(address artist) external view returns (uint256) {
     return songsCount[artist];
-  }
-
-  function _generateArtistId() internal pure returns (uint256) {
-    //TODO: use chainlink oracles to get a random artist ID here
-    return 123;
-  }
-
-  function _generateSongId() internal pure returns (uint256) {
-    //TODO: use chainlink oracles to get a random song ID here
-    return 321;
   }
 }

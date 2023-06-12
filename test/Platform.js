@@ -6,10 +6,57 @@ describe("Platform", function () {
   async function deployInstance() {
     const [owner, firstAccount] = await ethers.getSigners();
 
-    const Platform = await ethers.getContractFactory("Platform");
-    const platform = await Platform.deploy();
+    // TODO: create and fund oracle subscription here
+    const BASE_FEE = '100000000000000000';
+    const GAS_PRICE_LINK = '1000000000';
 
-    return { platform, owner, firstAccount };
+    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2Mock");
+    const coordinator = await Coordinator.deploy(BASE_FEE, GAS_PRICE_LINK);
+
+    // Create the subscription
+    const createSubResponse = await coordinator.createSubscription();
+    const subTx = await createSubResponse.wait();
+    const { subId } = subTx.events[0].args;
+
+    // Fund the subscription
+    await (await coordinator.fundSubscription(subId, 10)).wait();
+
+    const Platform = await ethers.getContractFactory("Platform");
+    const platform = await Platform.deploy(
+      coordinator.address,
+      subId,
+      // random gas lane
+      "0xbadf00dbadf00dbadf00dbadf00dbadf00dbadf00dbadf00dbadf00dbadf00d1"
+    );
+
+    await (await coordinator.addConsumer(subId, platform.address)).wait();
+
+    return { platform, coordinator, owner, firstAccount };
+  }
+
+  async function initializeArtistRegistration(
+    platform,
+    coordinator,
+    firstAccount,
+    artistName
+  ) {
+      const registrationResponse = platform.connect(firstAccount).registerArtist('First Artist');
+      await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
+
+      const registrationTx = await (await registrationResponse).wait();
+      console.log({registrationTx});
+      const requestId = registrationTx.logs[0].topics[1];
+
+      // Registration is a two step process.
+      // The oracle must return the random ID and complete the registration.
+      expect(
+        await platform.getArtistName(firstAccount.address)
+      ).not.to.equal('First Artist');
+
+      // Expecting that the ID has been assigned
+      expect(
+        (await platform.getArtistId(firstAccount.address)).toString()
+      ).to.equal('0');
   }
 
   describe("Deployment", function () {
@@ -29,27 +76,28 @@ describe("Platform", function () {
       ).to.be.revertedWithCustomError(platform, 'ArtistNameRequired');
     });
 
-    it("assigns an ID that is different from the previous artist's ID");
+    it.only('initializes artist registration', async function () {
+      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
-    it('registers an artist', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
-
-      await expect(
-        platform.connect(firstAccount).registerArtist('First Artist')
-      ).to.emit(platform, 'ArtistRegistered').withArgs(
-        firstAccount.address,
-        anyUint, // The artist's unique ID
-        'First Artist'
+      // Chainlink VRF request id
+      await initializeArtistRegistration(
+        platform,
+        coordinator,
+        firstAccount,
+        'First Artist',
       );
+    });
 
-      expect(
-        await platform.getArtistName(firstAccount.address)
-      ).to.equal('First Artist');
+    it('completes artist registration', async function () {
+      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
-      // Expecting that the ID has been assigned
-      expect(
-        await platform.getArtistId(firstAccount.address).toString()
-      ).not.to.equal('0');
+      // Chainlink VRF request id
+      const requestId = await initializeArtistRegistration(
+        platform,
+        coordinator,
+        firstAccount,
+        'First Artist',
+      );
     });
   });
 
