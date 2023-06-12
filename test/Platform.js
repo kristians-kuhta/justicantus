@@ -41,23 +41,33 @@ describe("Platform", function () {
     firstAccount,
     artistName
   ) {
-      const registrationResponse = platform.connect(firstAccount).registerArtist('First Artist');
-      await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
+    const registrationResponse = platform.connect(firstAccount).registerArtist('First Artist');
+    await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
 
-      const registrationTx = await (await registrationResponse).wait();
-      console.log({registrationTx});
-      const requestId = registrationTx.logs[0].topics[1];
+    const registrationTx = await (await registrationResponse).wait();
+    const event = registrationTx.events[0];
+    const eventSignature = 'RandomWordsRequested(bytes32,uint256,uint256,uint64,uint16,uint32,uint32,address)';
+    const eventAbi = coordinator.interface.events[eventSignature];
+    const decodedData = ethers.utils.defaultAbiCoder.decode(
+      eventAbi.inputs.filter(i => !i.indexed),
+      event.data,
+      event.topics.slice(1)
+    );
 
-      // Registration is a two step process.
-      // The oracle must return the random ID and complete the registration.
-      expect(
-        await platform.getArtistName(firstAccount.address)
-      ).not.to.equal('First Artist');
+    const { requestId } = decodedData;
 
-      // Expecting that the ID has been assigned
-      expect(
-        (await platform.getArtistId(firstAccount.address)).toString()
-      ).to.equal('0');
+    // Registration is a two step process.
+    // The oracle must return the random ID and complete the registration.
+    expect(
+      await platform.getArtistName(firstAccount.address)
+    ).not.to.equal('First Artist');
+
+    // Expecting that the ID has been assigned
+    expect(
+      (await platform.getArtistId(firstAccount.address)).toString()
+    ).to.equal('0');
+
+    return requestId;
   }
 
   describe("Deployment", function () {
@@ -77,7 +87,7 @@ describe("Platform", function () {
       ).to.be.revertedWithCustomError(platform, 'ArtistNameRequired');
     });
 
-    it.only('initializes artist registration', async function () {
+    it('initializes artist registration', async function () {
       const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
       // Chainlink VRF request id
@@ -91,6 +101,8 @@ describe("Platform", function () {
 
     it('completes artist registration', async function () {
       const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
+      // Unknown = 0; Artist = 1; Song = 2
+      const RESOURCE_TYPE_ARTIST = 1;
 
       // Chainlink VRF request id
       const requestId = await initializeArtistRegistration(
@@ -99,6 +111,19 @@ describe("Platform", function () {
         firstAccount,
         'First Artist',
       );
+
+      await expect(
+        coordinator.fulfillRandomWords(requestId, platform.address)
+      ).to.emit(platform, 'ResourceRegistered').withArgs(
+        firstAccount.address,
+        RESOURCE_TYPE_ARTIST,
+        anyUint,
+        'First Artist'
+      );
+
+      const artistId = await platform.getArtistId(firstAccount.address);
+      expect(artistId.toString()).not.to.be.eq('0');
+      expect(await platform.getArtistName(firstAccount.address)).to.eq('First Artist');
     });
   });
 
