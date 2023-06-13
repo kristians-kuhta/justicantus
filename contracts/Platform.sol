@@ -41,9 +41,9 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   mapping(uint256 id => string name) public artistNames;
   mapping(address account => uint256 id) public artistIds;
 
-  mapping(uint256 id => string uri) public songURIs;
-  mapping(address account => uint256[] ids) public songIds;
-  mapping(address account => uint256 count) public songsCount;
+  mapping(uint256 id => string uri) private songURIs;
+  mapping(address account => uint256[] ids) private songIds;
+  mapping(address account => uint256 count) private songsCount;
 
   // Requests are used for generating IDs (both for an artists and a song)
   mapping(uint256 requestId => Registration registration) private registrations;
