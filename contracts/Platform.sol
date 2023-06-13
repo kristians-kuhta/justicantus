@@ -132,7 +132,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
     if (registration.resourceType == ResourceType.Artist) {
       _completeArtistRegistration(registration);
-    } else if (registration.resourceType == ResourceType.Artist) {
+    } else if (registration.resourceType == ResourceType.Song) {
       _completeSongRegistration(registration);
     } else {
       revert('Unsupported registration');
