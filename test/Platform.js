@@ -69,6 +69,90 @@ describe("Platform", function () {
     return requestId;
   }
 
+  async function initializeSongRegistration(
+    platform,
+    coordinator,
+    firstAccount,
+    uri
+  ) {
+    const SONG_URI = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
+    const registrationResponse = platform.connect(firstAccount).registerSong(SONG_URI);
+    await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
+
+    const registrationTx = await (await registrationResponse).wait();
+    const event = registrationTx.events[0];
+    const eventSignature = 'RandomWordsRequested(bytes32,uint256,uint256,uint64,uint16,uint32,uint32,address)';
+    const eventAbi = coordinator.interface.events[eventSignature];
+    const decodedData = ethers.utils.defaultAbiCoder.decode(
+      eventAbi.inputs.filter(i => !i.indexed),
+      event.data,
+      event.topics.slice(1)
+    );
+
+    const { requestId } = decodedData;
+
+    // Registration is a two step process.
+    // The oracle must return the random ID and complete the registration.
+    expect(
+      (await platform.getArtistSongsCount(firstAccount.address)).toString()
+    ).to.equal('0');
+
+    return requestId;
+  }
+
+  async function fully_register_artist(platform, coordinator, account, artistName) {
+    // Unknown = 0; Artist = 1; Song = 2
+    const RESOURCE_TYPE_ARTIST = 1;
+
+    // Chainlink VRF request id
+    const requestId = await initializeArtistRegistration(
+      platform,
+      coordinator,
+      account,
+      artistName
+    );
+
+    await expect(
+      coordinator.fulfillRandomWords(requestId, platform.address)
+    ).to.emit(platform, 'ResourceRegistered').withArgs(
+      account.address,
+      RESOURCE_TYPE_ARTIST,
+      anyUint,
+      artistName
+    );
+
+    const artistId = await platform.getArtistId(account.address);
+    expect(artistId.toString()).not.to.be.eq('0');
+    expect(await platform.getArtistName(account.address)).to.eq(artistName);
+  }
+
+  async function fully_register_song(platform, coordinator, account, uri) {
+    // Unknown = 0; Artist = 1; Song = 2
+    const RESOURCE_TYPE_SONG = 2;
+
+    // Chainlink VRF request id
+    const requestId = await initializeSongRegistration(
+      platform,
+      coordinator,
+      account,
+      uri
+    );
+
+    await expect(
+      coordinator.fulfillRandomWords(requestId, platform.address)
+    ).to.emit(platform, 'ResourceRegistered').withArgs(
+      account.address,
+      RESOURCE_TYPE_SONG,
+      anyUint,
+      uri
+    );
+
+    const songId = await platform.getArtistSongId(account.address, 0);
+    expect((await platform.getArtistSongsCount(account.address)).toString()).to.eq('1');
+    expect(songId.toString()).not.to.eq('0');
+    expect(await platform.getSongUri(songId)).to.eq(uri);
+  }
+
   describe("Deployment", function () {
     it("sets the owner", async function () {
       const { platform, owner } = await loadFixture(deployInstance);
@@ -100,77 +184,64 @@ describe("Platform", function () {
 
     it('completes artist registration', async function () {
       const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
-      // Unknown = 0; Artist = 1; Song = 2
-      const RESOURCE_TYPE_ARTIST = 1;
 
-      // Chainlink VRF request id
-      const requestId = await initializeArtistRegistration(
+      await fully_register_artist(
         platform,
         coordinator,
         firstAccount,
-        'First Artist',
-      );
-
-      await expect(
-        coordinator.fulfillRandomWords(requestId, platform.address)
-      ).to.emit(platform, 'ResourceRegistered').withArgs(
-        firstAccount.address,
-        RESOURCE_TYPE_ARTIST,
-        anyUint,
         'First Artist'
       );
-
-      const artistId = await platform.getArtistId(firstAccount.address);
-      expect(artistId.toString()).not.to.be.eq('0');
-      expect(await platform.getArtistName(firstAccount.address)).to.eq('First Artist');
     });
   });
 
   describe('Song registration', function () {
-    it('registers a song', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+    it('initializes song registration', async function () {
+      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
-      await expect(
-        platform.connect(firstAccount).registerArtist('First Artist')
-      ).to.emit(platform, 'ArtistRegistered').withArgs(
-        firstAccount.address,
-        anyUint, // The artist's unique ID
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
         'First Artist'
       );
 
       const ipfsID = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
-      const registerSongResponse = platform.connect(firstAccount).registerSong(ipfsID);
 
-      await expect(registerSongResponse).to.emit(platform, 'SongRegistered').withArgs(
-        firstAccount.address,
-        anyUint, // The song's unique ID
+      await initializeSongRegistration(
+        platform,
+        coordinator,
+        firstAccount,
         ipfsID
       );
+    });
 
-      const registerTx = await (await registerSongResponse).wait();
-      const songId = registerTx.logs[0].topics[2];
+    it('completes song registration', async function () {
+      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
-      expect(
-        await platform.getSongUri(songId)
-      ).to.equal(ipfsID);
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
+        'First Artist'
+      );
 
-      expect(
-        (await platform.getArtistSongId(firstAccount.address, 0)).toString()
-      ).to.equal('321');
+      const ipfsID = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
 
-      expect(
-        (await platform.getArtistSongsCount(firstAccount.address)).toString()
-      ).to.equal('1');
+      await fully_register_song(
+        platform,
+        coordinator,
+        firstAccount,
+        ipfsID
+      );
     });
 
     it('reverts when registering a song without providing uri', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
-      await expect(
-        platform.connect(firstAccount).registerArtist('First Artist')
-      ).to.emit(platform, 'ArtistRegistered').withArgs(
-        firstAccount.address,
-        anyUint, // The artist's unique ID
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
         'First Artist'
       );
 
@@ -181,14 +252,6 @@ describe("Platform", function () {
 
     it('reverts when registering song from an account that is not registered as an artist', async function () {
       const { platform, firstAccount } = await loadFixture(deployInstance);
-
-      await expect(
-        platform.connect(firstAccount).registerArtist('First Artist')
-      ).to.emit(platform, 'ArtistRegistered').withArgs(
-        firstAccount.address,
-        anyUint, // The artist's unique ID
-        'First Artist'
-      );
 
       await expect(
         platform.registerSong('something')
