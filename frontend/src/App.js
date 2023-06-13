@@ -1,8 +1,15 @@
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+
+import Navigation from './components/Navigation/Navigation.js';
 
 function App() {
   return (
-    <p>App goes here</p>
+    <>
+      <Navigation>
+      </Navigation>
+      <p>App goes here</p>
+    </>
   );
 }
 
