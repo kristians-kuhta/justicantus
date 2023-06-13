@@ -67,13 +67,13 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     keyHash = _keyHash;
   }
 
-  function _requireArtistName(string calldata name) internal view {
+  function _requireArtistName(string calldata name) internal pure {
     if (bytes(name).length == 0) {
       revert ArtistNameRequired();
     }
   }
 
-  function _requireUri(string calldata uri) internal view {
+  function _requireUri(string calldata uri) internal pure {
     if (bytes(uri).length == 0) {
       revert SongUriRequired();
     }
