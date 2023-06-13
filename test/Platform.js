@@ -61,7 +61,7 @@ describe("Platform", function () {
       await platform.getArtistName(firstAccount.address)
     ).not.to.equal('First Artist');
 
-    // Expecting that the ID has been assigned
+    // Expecting that the ID hasn't been assigned
     expect(
       (await platform.getArtistId(firstAccount.address)).toString()
     ).to.equal('0');
