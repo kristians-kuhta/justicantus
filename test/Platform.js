@@ -6,7 +6,6 @@ describe("Platform", function () {
   async function deployInstance() {
     const [owner, firstAccount] = await ethers.getSigners();
 
-    // TODO: create and fund oracle subscription here
     const BASE_FEE = '100000000000000000';
     const GAS_PRICE_LINK = '1000000000';
     const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
