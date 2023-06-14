@@ -1,39 +1,9 @@
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyUint } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
+const { PlatformAndCoordinatorFixture } = require("../fixtures/PlatformAndCoordinatorFixture");
 
 describe("Platform", function () {
-  async function deployInstance() {
-    const [owner, firstAccount] = await ethers.getSigners();
-
-    const BASE_FEE = '100000000000000000';
-    const GAS_PRICE_LINK = '1000000000';
-    const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
-
-    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2Mock");
-    const coordinator = await Coordinator.deploy(BASE_FEE, GAS_PRICE_LINK);
-
-    // Create the subscription
-    const createSubResponse = await coordinator.createSubscription();
-    const subTx = await createSubResponse.wait();
-    const { subId } = subTx.events[0].args;
-
-    // Fund the subscription
-    await (await coordinator.fundSubscription(subId, SUBSCRIPTION_BALANCE)).wait();
-
-    const Platform = await ethers.getContractFactory("Platform");
-    const platform = await Platform.deploy(
-      coordinator.address,
-      subId,
-      // random gas lane
-      "0xbadf00dbadf00dbadf00dbadf00dbadf00dbadf00dbadf00dbadf00dbadf00d1"
-    );
-
-    await (await coordinator.addConsumer(subId, platform.address)).wait();
-
-    return { platform, coordinator, owner, firstAccount };
-  }
-
   async function initializeArtistRegistration(
     platform,
     coordinator,
@@ -155,7 +125,7 @@ describe("Platform", function () {
 
   describe("Deployment", function () {
     it("sets the owner", async function () {
-      const { platform, owner } = await loadFixture(deployInstance);
+      const { platform, owner } = await loadFixture(PlatformAndCoordinatorFixture);
 
       expect(await platform.owner()).to.equal(owner.address);
     });
@@ -163,7 +133,7 @@ describe("Platform", function () {
 
   describe('Artist registration', function () {
     it('reverts when registering an artist without name', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       await expect(
         platform.registerArtist('')
@@ -171,7 +141,7 @@ describe("Platform", function () {
     });
 
     it('initializes artist registration', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
+      const { platform, coordinator, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       // Chainlink VRF request id
       await initializeArtistRegistration(
@@ -183,7 +153,7 @@ describe("Platform", function () {
     });
 
     it('completes artist registration', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
+      const { platform, coordinator, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       await fully_register_artist(
         platform,
@@ -196,7 +166,7 @@ describe("Platform", function () {
 
   describe('Song registration', function () {
     it('initializes song registration', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
+      const { platform, coordinator, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       await fully_register_artist(
         platform,
@@ -216,7 +186,7 @@ describe("Platform", function () {
     });
 
     it('completes song registration', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
+      const { platform, coordinator, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       await fully_register_artist(
         platform,
@@ -236,7 +206,7 @@ describe("Platform", function () {
     });
 
     it('reverts when registering a song without providing uri', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
+      const { platform, coordinator, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       await fully_register_artist(
         platform,
@@ -251,7 +221,7 @@ describe("Platform", function () {
     });
 
     it('reverts when registering song from an account that is not registered as an artist', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(PlatformAndCoordinatorFixture);
 
       await expect(
         platform.registerSong('something')
