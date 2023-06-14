@@ -1,8 +1,9 @@
 const hre = require('hardhat');
 const fs = require('fs');
 const path = require('path');
+const { PlatformAndCoordinatorFixture } = require('../fixtures/PlatformAndCoordinatorFixture');
 
-function saveFrontendFiles(platform) {
+function saveFrontendFiles(platform, coordinatorAddress) {
   const contractsDir = path.join(__dirname, "/../frontend/src/contracts");
   if (!fs.existsSync(contractsDir)) {
     fs.mkdirSync(contractsDir);
@@ -10,7 +11,7 @@ function saveFrontendFiles(platform) {
 
   fs.writeFileSync(
     contractsDir + "/contract-addresses.json",
-    JSON.stringify({ Platform: platform.address }, null, 2)
+    JSON.stringify({ Platform: platform.address, Coordinator: coordinatorAddress }, null, 2)
   );
 
   // `artifacts` is a helper property provided by Hardhat to read artifacts
@@ -24,18 +25,35 @@ function saveFrontendFiles(platform) {
 }
 
 async function main() {
-  const Platform = await hre.ethers.getContractFactory('Platform');
+  let platform;
+  let coordinatorAddress;
+  let subscriptionId;
+  let keyHash;
 
-  const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
+  if (hre.network.name === 'localhost') {
+    const fixtureValues = await PlatformAndCoordinatorFixture();
+    const { coordinator, subId, KEY_HASH } = fixtureValues;
+    coordinatorAddress = coordinator.address;
+    subscriptionId = subId;
+    keyHash = KEY_HASH;
+    platform = fixtureValues.platform;
+  } else {
+    const Platform = await hre.ethers.getContractFactory('Platform');
 
-  const platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
+    const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
+    coordinatorAddress = VRF_COORDINATOR;
+    subscriptionId = SUBSCRIPTION_ID;
+    keyHash = KEY_HASH;
 
-  await platform.deployed();
+    platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
 
-  saveFrontendFiles(platform);
+    await platform.deployed();
+  }
+
+  saveFrontendFiles(platform, coordinatorAddress);
 
   console.log(
-    `Platform with coordinator "${VRF_COORDINATOR}", subscription ID "${SUBSCRIPTION_ID}", and key hash of "${KEY_HASH}" deployed to ${platform.address}`
+    `Platform with coordinator "${coordinatorAddress}", subscription ID "${subscriptionId}", and key hash of "${keyHash}" deployed to ${platform.address}`
   );
 }
 
