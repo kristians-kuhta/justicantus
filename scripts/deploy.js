@@ -1,26 +1,41 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
-const hre = require("hardhat");
+const hre = require('hardhat');
+const fs = require('fs');
+const path = require('path');
+
+function saveFrontendFiles(platform) {
+  const contractsDir = path.join(__dirname, "/../frontend/src/contracts");
+  if (!fs.existsSync(contractsDir)) {
+    fs.mkdirSync(contractsDir);
+  }
+
+  fs.writeFileSync(
+    contractsDir + "/contract-addresses.json",
+    JSON.stringify({ Platform: platform.address }, null, 2)
+  );
+
+  // `artifacts` is a helper property provided by Hardhat to read artifacts
+  const PlatformArtifact = artifacts.readArtifactSync("Platform");
+  fs.writeFileSync(
+    contractsDir + "/Platform.json",
+    JSON.stringify(PlatformArtifact, null, 2)
+  );
+
+  console.log(`Artifacts written to ${contractsDir} directory`);
+}
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  const Platform = await hre.ethers.getContractFactory('Platform');
 
-  const lockedAmount = hre.ethers.utils.parseEther("0.001");
+  const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  const platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
 
-  await lock.deployed();
+  await platform.deployed();
+
+  saveFrontendFiles(platform);
 
   console.log(
-    `Lock with ${ethers.utils.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
+    `Platform with coordinator "${VRF_COORDINATOR}", subscription ID "${SUBSCRIPTION_ID}", and key hash of "${KEY_HASH}" deployed to ${platform.address}`
   );
 }
 
