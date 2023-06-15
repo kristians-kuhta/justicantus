@@ -22,16 +22,25 @@ const RegisterArtist = () => {
     mode: "onChange"
   });
 
-  const handleResourceRegisteredEvent = (event) => {
-    console.log({event});
+  const handleResourceRegisteredEvent = (a, b, c) => {
+    // TODO: make sure that this is the actual resource that is being
+    //       registered right now, by us.
+    console.log({a, b, c});
     setProgress(100);
   }
 
   const onSubmit = async data => {
     setProgress(25);
-    console.log(await platform.artistIds(account));
+
     try {
-      await platform.registerArtist(data.artistName, { gasLimit: 100000 });
+      platform.on('RegistrationCreated', (_a, _b, event) => {
+        // TODO: note that this will log out any emitted registration
+        //       the intent behind this is to use this requestId in fulfillment
+        //       (dev environment)
+        console.log({_a, _b, event});
+        console.log(`Request ID: ${event.args.requestId}`);
+      });
+      await platform.registerArtist(data.artistName, { gasLimit: 500000 });
       setProgress(50);
       platform.on('ResourceRegistered', handleResourceRegisteredEvent);
     } catch (e) {

@@ -1,9 +1,9 @@
 const hre = require('hardhat');
 const fs = require('fs');
 const path = require('path');
-const { PlatformAndCoordinatorFixture } = require('../fixtures/PlatformAndCoordinatorFixture');
+const { PlatformFixture } = require('../fixtures/PlatformFixture');
 
-function saveFrontendFiles(platform, coordinatorAddress) {
+function saveFrontendFiles(platform) {
   const contractsDir = path.join(__dirname, "/../frontend/src/contracts");
   if (!fs.existsSync(contractsDir)) {
     fs.mkdirSync(contractsDir);
@@ -11,7 +11,7 @@ function saveFrontendFiles(platform, coordinatorAddress) {
 
   fs.writeFileSync(
     contractsDir + "/contract-addresses.json",
-    JSON.stringify({ Platform: platform.address, Coordinator: coordinatorAddress }, null, 2)
+    JSON.stringify({ Platform: platform.address }, null, 2)
   );
 
   // `artifacts` is a helper property provided by Hardhat to read artifacts
@@ -25,35 +25,27 @@ function saveFrontendFiles(platform, coordinatorAddress) {
 }
 
 async function main() {
-  let platform;
-  let coordinatorAddress;
-  let subscriptionId;
-  let keyHash;
+  const Platform = await hre.ethers.getContractFactory('Platform');
 
-  if (hre.network.name === 'localhost') {
-    const fixtureValues = await PlatformAndCoordinatorFixture();
-    const { coordinator, subId, KEY_HASH } = fixtureValues;
-    coordinatorAddress = coordinator.address;
-    subscriptionId = subId;
-    keyHash = KEY_HASH;
-    platform = fixtureValues.platform;
-  } else {
-    const Platform = await hre.ethers.getContractFactory('Platform');
+  const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH, VRF_ADMIN } = process.env;
 
-    const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
-    coordinatorAddress = VRF_COORDINATOR;
-    subscriptionId = SUBSCRIPTION_ID;
-    keyHash = KEY_HASH;
+  platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
 
-    platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
+  await platform.deployed();
 
-    await platform.deployed();
-  }
+  const vrfAdmin = await ethers.getImpersonatedSigner(VRF_ADMIN);
 
-  saveFrontendFiles(platform, coordinatorAddress);
+  const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2");
+  const coordinator = await Coordinator.attach(VRF_COORDINATOR);
+
+  await (
+    await coordinator.connect(vrfAdmin).addConsumer(SUBSCRIPTION_ID, platform.address, { gasLimit: 300000})
+  ).wait();
+
+  saveFrontendFiles(platform);
 
   console.log(
-    `Platform with coordinator "${coordinatorAddress}", subscription ID "${subscriptionId}", and key hash of "${keyHash}" deployed to ${platform.address}`
+    `Platform with coordinator "${VRF_COORDINATOR}", subscription ID "${SUBSCRIPTION_ID}", and key hash of "${KEY_HASH}" deployed to ${platform.address}`
   );
 }
 

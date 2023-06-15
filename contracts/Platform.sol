@@ -133,7 +133,6 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     uint256 _requestId,
     uint256[] memory _randomWords
   ) internal override {
-
     Registration storage registration = registrations[_requestId];
     require(!registration.completed);
 
