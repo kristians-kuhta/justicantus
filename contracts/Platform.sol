@@ -25,6 +25,11 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     string data;
   }
 
+  event RegistrationCreated(
+    ResourceType indexed resourceType,
+    uint256 indexed requestId
+  );
+
   // Data is either artist name or song uri
   event ResourceRegistered(
     address indexed account,
@@ -151,6 +156,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
         CALLBACK_GAS_LIMIT,
         NUM_WORDS
     );
+
+    emit RegistrationCreated(resourceType, requestId);
 
     // TODO: Consider checking for existing requestIds.
     //       Failing to do this this could lead to overriding existing registrations.
