@@ -39,6 +39,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   );
 
   error ArtistNameRequired();
+  error ArtistAlreadyRegistered();
   error SongUriRequired();
   error NotARegisteredArtist();
 
@@ -78,6 +79,12 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     }
   }
 
+  function _requireNotRegistered() internal view {
+    if (artistIds[msg.sender] > 0) {
+      revert ArtistAlreadyRegistered();
+    }
+  }
+
   function _requireUri(string calldata uri) internal pure {
     if (bytes(uri).length == 0) {
       revert SongUriRequired();
@@ -92,6 +99,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
   function registerArtist(string calldata name) external {
     _requireArtistName(name);
+    _requireNotRegistered();
 
     _createResourceRegistration(ResourceType.Artist, name);
   }
