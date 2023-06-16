@@ -26,6 +26,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   }
 
   event RegistrationCreated(
+    address indexed account,
     ResourceType indexed resourceType,
     uint256 indexed requestId
   );
@@ -164,7 +165,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
         NUM_WORDS
     );
 
-    emit RegistrationCreated(resourceType, requestId);
+    emit RegistrationCreated(msg.sender, resourceType, requestId);
 
     // TODO: Consider checking for existing requestIds.
     //       Failing to do this this could lead to overriding existing registrations.
