@@ -1,7 +1,6 @@
 const hre = require('hardhat');
 const fs = require('fs');
 const path = require('path');
-const { PlatformFixture } = require('../fixtures/PlatformFixture');
 
 function saveFrontendFiles(platform) {
   const contractsDir = path.join(__dirname, "/../frontend/src/contracts");
