@@ -1,7 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
 require('dotenv').config();
-// TODO: when deploying -> store the addresses both in hardhat project and frontend
-const contractAddresses = require('./frontend/src/contracts/contract-addresses.json');
 
 task(
   "vrf_fulfill",
@@ -10,6 +8,9 @@ task(
   addPositionalParam('requestId').
   addPositionalParam('value').
   setAction(async ({ requestId, value }, hre, runSuper) => {
+    // TODO: when deploying -> store the addresses both in hardhat project and frontend
+    const contractAddresses = require('./frontend/src/contracts/contract-addresses.json');
+
     // TODO: possibly reuse most of this tasks logic in tests
     const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
 
