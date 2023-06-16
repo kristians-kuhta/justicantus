@@ -213,6 +213,26 @@ describe("Platform", function () {
       );
     });
 
+    it('reverts when trying to register artist twice from the same account', async function () {
+      const {
+        platform,
+        coordinator,
+        firstAccount,
+        vrfAdmin
+      } = await loadFixture(deployInstance)
+
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
+        'First Artist',
+        vrfAdmin
+      );
+      await expect(
+        platform.connect(firstAccount).registerArtist('Other Artist?')
+      ).to.be.revertedWithCustomError(platform, 'ArtistAlreadyRegistered');
+    });
+
     it('completes artist registration', async function () {
       const {
         platform,
