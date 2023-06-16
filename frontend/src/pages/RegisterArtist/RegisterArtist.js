@@ -7,12 +7,14 @@ import {
 } from 'react-bootstrap';
 
 import { useForm } from 'react-hook-form';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 
+const ARTIST_RESOURCE_TYPE = 1;
 
 const RegisterArtist = () => {
-  const { account, platform } = useOutletContext();
+  const { account, platform, setMessage } = useOutletContext();
   const [progress, setProgress] = useState(0);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -22,29 +24,50 @@ const RegisterArtist = () => {
     mode: "onChange"
   });
 
-  const handleResourceRegisteredEvent = (a, b, c) => {
-    // TODO: make sure that this is the actual resource that is being
-    //       registered right now, by us.
-    console.log({a, b, c});
-    setProgress(100);
+  const handleResourceRegisteredEvent = (creator, resourceType, assignedId) => {
+    const accountLowercase = account.toLowerCase();
+    const creatorLowercase = creator.toLowerCase();
+
+    if (creatorLowercase === accountLowercase && resourceType === ARTIST_RESOURCE_TYPE) {
+      setProgress(100);
+      setMessage({
+        text: 'Artist registered!',
+        type: 'success'
+      });
+      navigate(`/artists/${assignedId.toHexString()}/songs`);
+    }
   }
 
   const onSubmit = async data => {
     setProgress(25);
 
     try {
-      platform.on('RegistrationCreated', (_a, _b, event) => {
-        // TODO: note that this will log out any emitted registration
-        //       the intent behind this is to use this requestId in fulfillment
-        //       (dev environment)
-        console.log({_a, _b, event});
-        console.log(`Request ID: ${event.args.requestId}`);
+      platform.on('RegistrationCreated', (creator, resourceType, requestId) => {
+        const accountLowercase = account.toLowerCase();
+        const creatorLowercase = creator.toLowerCase();
+
+        if (creatorLowercase === accountLowercase && resourceType === ARTIST_RESOURCE_TYPE) {
+          // NOTE: In dev. environment you are expected to take this requestId
+          // and fulfill VRF request manually via the hardhat task.
+          // In mainnet or testnet the requests will be fulfilled by Chainlink.
+          console.log(`Request ID: ${requestId.toHexString()}`);
+          setProgress(75);
+        } else {
+          console.log({account, creator, resourceType, requestId});
+        }
       });
-      await platform.registerArtist(data.artistName, { gasLimit: 500000 });
-      setProgress(50);
+
       platform.on('ResourceRegistered', handleResourceRegisteredEvent);
+
+      await platform.registerArtist(data.artistName, { gasLimit: 500000 });
+
+      setProgress(50);
     } catch (e) {
-      alert('Could not register artist!');
+      setMessage({
+        text: 'Could not register artist!',
+        type: 'success'
+      });
+
       setProgress(0);
       console.error(e);
     }
@@ -81,7 +104,7 @@ const RegisterArtist = () => {
         <Button variant="primary" type="submit" disabled={progress > 0 || !isDirty || !isValid} >
           Register
         </Button>
-        { progress > 0 && <ProgressBar animated now={progress}  /> }
+        { progress > 0 && progress < 100 && <ProgressBar className="mt-3" animated now={progress} /> }
       </Form>
     </Container>
   </>;
