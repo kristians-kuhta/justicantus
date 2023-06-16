@@ -25,6 +25,11 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     string data;
   }
 
+  event RegistrationCreated(
+    ResourceType indexed resourceType,
+    uint256 indexed requestId
+  );
+
   // Data is either artist name or song uri
   event ResourceRegistered(
     address indexed account,
@@ -34,6 +39,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   );
 
   error ArtistNameRequired();
+  error ArtistAlreadyRegistered();
   error SongUriRequired();
   error NotARegisteredArtist();
 
@@ -73,6 +79,12 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     }
   }
 
+  function _requireNotRegistered() internal view {
+    if (artistIds[msg.sender] > 0) {
+      revert ArtistAlreadyRegistered();
+    }
+  }
+
   function _requireUri(string calldata uri) internal pure {
     if (bytes(uri).length == 0) {
       revert SongUriRequired();
@@ -87,6 +99,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
   function registerArtist(string calldata name) external {
     _requireArtistName(name);
+    _requireNotRegistered();
 
     _createResourceRegistration(ResourceType.Artist, name);
   }
@@ -120,7 +133,6 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     uint256 _requestId,
     uint256[] memory _randomWords
   ) internal override {
-
     Registration storage registration = registrations[_requestId];
     require(!registration.completed);
 
@@ -151,6 +163,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
         CALLBACK_GAS_LIMIT,
         NUM_WORDS
     );
+
+    emit RegistrationCreated(resourceType, requestId);
 
     // TODO: Consider checking for existing requestIds.
     //       Failing to do this this could lead to overriding existing registrations.

@@ -26,11 +26,20 @@ function saveFrontendFiles(platform) {
 async function main() {
   const Platform = await hre.ethers.getContractFactory('Platform');
 
-  const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
+  const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH, VRF_ADMIN } = process.env;
 
-  const platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
+  platform = await Platform.deploy(VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH);
 
   await platform.deployed();
+
+  const vrfAdmin = await ethers.getImpersonatedSigner(VRF_ADMIN);
+
+  const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2");
+  const coordinator = await Coordinator.attach(VRF_COORDINATOR);
+
+  await (
+    await coordinator.connect(vrfAdmin).addConsumer(SUBSCRIPTION_ID, platform.address, { gasLimit: 300000})
+  ).wait();
 
   saveFrontendFiles(platform);
 
