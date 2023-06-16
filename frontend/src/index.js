@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-// import './index.css';
-import App from './components/App/App';
+import App, { appLoader } from './components/App/App';
 import RegisterArtist from './pages/RegisterArtist/RegisterArtist';
+import ArtistSongs, { artistSongsLoader } from './pages/ArtistSongs/ArtistSongs';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -18,13 +18,18 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
-    // TODO: consider if the error page is needed
-    // errorElement: <ErrorPage />,
+    id: 'root',
+    loader: appLoader,
     children: [
       {
         path: "artists/register",
-        element: <RegisterArtist />,
+        element: <RegisterArtist/>,
       },
+      {
+        path: "artists/:id/songs",
+        element: <ArtistSongs />,
+        loader: artistSongsLoader
+      }
     ],
   },
 ]);
