@@ -12,7 +12,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 const ARTIST_RESOURCE_TYPE = 1;
 
 const RegisterArtist = () => {
-  const { account, platform, setMessage } = useOutletContext();
+  const { account, platform, setMessage, setArtist } = useOutletContext();
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
@@ -24,7 +24,7 @@ const RegisterArtist = () => {
     mode: "onChange"
   });
 
-  const handleResourceRegisteredEvent = (creator, resourceType, assignedId) => {
+  const handleResourceRegisteredEvent = async (creator, resourceType, assignedId) => {
     const accountLowercase = account.toLowerCase();
     const creatorLowercase = creator.toLowerCase();
 
@@ -34,6 +34,14 @@ const RegisterArtist = () => {
         text: 'Artist registered!',
         type: 'success'
       });
+
+      const artistName = await platform.getArtistName(account);
+
+      setArtist({
+        id: assignedId,
+        name: artistName
+      });
+
       navigate(`/artists/${assignedId.toHexString()}/songs`);
     }
   }
@@ -52,8 +60,6 @@ const RegisterArtist = () => {
           // In mainnet or testnet the requests will be fulfilled by Chainlink.
           console.log(`Request ID: ${requestId.toHexString()}`);
           setProgress(75);
-        } else {
-          console.log({account, creator, resourceType, requestId});
         }
       });
 
