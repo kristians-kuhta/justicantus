@@ -16,6 +16,22 @@ functions.http('pinFile', (req, res) => {
     // Return a "method not allowed" error
     return res.status(405).end();
   }
+
+  // Set CORS headers for preflight requests
+  // Allows GETs from any origin with the Content-Type header
+  // and caches preflight response for 3600s
+
+  res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS);
+
+  if (req.method === 'OPTIONS') {
+    // Send response to OPTIONS requests
+    res.set('Access-Control-Allow-Methods', 'GET');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Access-Control-Max-Age', '3600');
+    res.status(204).send('');
+    return;
+  }
+
   const busboy = Busboy({headers: req.headers});
   const tmpdir = os.tmpdir();
   // The tmp file where the final JSON object will be written
@@ -103,11 +119,6 @@ functions.http('pinFile', (req, res) => {
     await Promise.all(fileWrites);
 
     await pinFileToIpfs();
-
-    // NOTE: in case there are more than one file form file sent, clean up behind all of them
-    uploads.forEach((upload) => {
-      fs.unlinkSync(upload);
-    });
   });
 
   busboy.end(req.rawBody);
