@@ -102,7 +102,7 @@ const NewArtistSong = () => {
       const ipfsHash = await uploadSongToIpfs(data.songTitle, data.songFile[0]);
 
       // TODO: figure out the actual gas needed here
-      await platform.registerSong(ipfsHash, { gasLimit: 500000 });
+      await platform.registerSong(ipfsHash, { gasLimit: 225000 });
     } catch (e) {
       setMessage({
         text: 'Could not register the song!',
