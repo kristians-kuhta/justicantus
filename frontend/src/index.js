@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App, { appLoader } from './components/App/App';
 import RegisterArtist from './pages/RegisterArtist/RegisterArtist';
 import ArtistSongs, { artistSongsLoader } from './pages/ArtistSongs/ArtistSongs';
+import NewArtistSong from './pages/NewArtistSong/NewArtistSong';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -29,6 +30,10 @@ const router = createBrowserRouter([
         path: "artists/:id/songs",
         element: <ArtistSongs />,
         loader: artistSongsLoader
+      },
+      {
+        path: "artists/:id/songs/new",
+        element: <NewArtistSong />
       }
     ],
   },
