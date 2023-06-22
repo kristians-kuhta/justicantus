@@ -46,7 +46,7 @@ const RegisterArtist = () => {
     }
   }
 
-  const onSubmit = async data => {
+  const onSubmit = async (data) => {
     setProgress(25);
 
     try {
@@ -58,20 +58,23 @@ const RegisterArtist = () => {
           // NOTE: In dev. environment you are expected to take this requestId
           // and fulfill VRF request manually via the hardhat task.
           // In mainnet or testnet the requests will be fulfilled by Chainlink.
-          console.log(`Request ID: ${requestId.toHexString()}`);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log(`[Artist] Request ID: ${requestId.toHexString()}`);
+          }
           setProgress(75);
         }
       });
 
       platform.on('ResourceRegistered', handleResourceRegisteredEvent);
 
-      await platform.registerArtist(data.artistName, { gasLimit: 500000 });
+      // TODO: consider narrowing this down even further
+      await platform.registerArtist(data.artistName, { gasLimit: 150000 });
 
       setProgress(50);
     } catch (e) {
       setMessage({
         text: 'Could not register artist!',
-        type: 'success'
+        type: 'danger'
       });
 
       setProgress(0);

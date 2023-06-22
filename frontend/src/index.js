@@ -2,7 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App, { appLoader } from './components/App/App';
 import RegisterArtist from './pages/RegisterArtist/RegisterArtist';
-import ArtistSongs, { artistSongsLoader } from './pages/ArtistSongs/ArtistSongs';
+import ArtistSongs from './pages/ArtistSongs/ArtistSongs';
+import NewArtistSong from './pages/NewArtistSong/NewArtistSong';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -26,9 +27,12 @@ const router = createBrowserRouter([
         element: <RegisterArtist/>,
       },
       {
-        path: "artists/:id/songs",
-        element: <ArtistSongs />,
-        loader: artistSongsLoader
+        path: "artists/:artistAddress/songs",
+        element: <ArtistSongs />
+      },
+      {
+        path: "artists/:artistAddress/songs/new",
+        element: <NewArtistSong />
       }
     ],
   },
