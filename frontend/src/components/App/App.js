@@ -98,7 +98,7 @@ function App() {
       { message.text.length > 0 &&
         <Alert variant={message.type}>{message.text}</Alert>
       }
-      <Outlet context={{ account, platform, setMessage, loggedInArtist }} />
+      <Outlet context={{ account, platform, setMessage, loggedInArtist, setLoggedInArtist }} />
     </>
   );
 }

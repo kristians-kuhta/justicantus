@@ -1,11 +1,36 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import Button from 'react-bootstrap/Button';
+import ListGroup from 'react-bootstrap/ListGroup';
 
 const ArtistSongsList = ({ songs }) => {
-  return <ul>
-    { Object.keys(songs).map((songID) => <li key={songID}>{songs[songID]}</li>) }
-  </ul>;
+  const { REACT_APP_IPFS_API_URL } = process.env;
+  const [ songsData, setSongsData ] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const data = await Promise.all(Object.entries(songs).map(async ([songId, songURI]) => {
+        return (await axios.get(`${REACT_APP_IPFS_API_URL}${songURI}`)).data;
+      }));
+
+      setSongsData(data);
+    })();
+  },[setSongsData, songs, REACT_APP_IPFS_API_URL]);
+
+  const songListItems = () => {
+    return songsData.map((song) => {
+      return <ListGroup.Item as='li' variant='dark' key={song.cid} className='d-flex align-items-center justify-content-around' >
+        {song.title}
+        <audio controls>
+          <source src={`${REACT_APP_IPFS_API_URL}${song.cid}`} />
+          Your browser does not support the audio tag.
+        </audio>
+      </ListGroup.Item>;
+    });
+  };
+
+  return <ListGroup variant='flush'>{songListItems()}</ListGroup>;
 };
 
 const ArtistSongs = () => {
