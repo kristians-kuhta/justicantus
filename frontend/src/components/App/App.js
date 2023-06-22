@@ -76,7 +76,7 @@ function getExpectedChain() {
 
 function App() {
   const [ message, setMessage ] = useState({ text: '', type: null });
-  const [ artist, setArtist ] = useState({ id: 0, name: '' });
+  const [ loggedInArtist, setLoggedInArtist ] = useState({ id: 0, name: '' });
   const {
     account,
     platform,
@@ -85,8 +85,8 @@ function App() {
   } = useLoaderData();
 
   useEffect(() => {
-    setArtist(artistData);
-  }, [setArtist, artistData]);
+    setLoggedInArtist(artistData);
+  }, [setLoggedInArtist, artistData]);
 
   if (networkSwitchNeccessary) {
     return <NetworkSwitchModal chainName={getExpectedChain().name}/>;
@@ -94,11 +94,11 @@ function App() {
 
   return (
     <>
-      <Navigation account={account} artist={artist} />
+      <Navigation account={account} loggedInArtist={loggedInArtist} />
       { message.text.length > 0 &&
         <Alert variant={message.type}>{message.text}</Alert>
       }
-      <Outlet context={{ account, platform, setMessage, artist, setArtist }} />
+      <Outlet context={{ account, platform, setMessage, loggedInArtist }} />
     </>
   );
 }

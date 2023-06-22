@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   Container,
   Form,
@@ -19,9 +19,6 @@ const NewArtistSong = () => {
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
-  //TODO: consider if this is needed
-  const newForm = useRef();
-
   const {
     register,
     handleSubmit,
@@ -41,9 +38,7 @@ const NewArtistSong = () => {
         type: 'success'
       });
 
-      const artistId = await platform.artistIds(creator);
-
-      navigate(`/artists/${artistId.toHexString()}/songs`);
+      navigate(`/artists/${creator}/songs`);
     }
   }
 
@@ -99,6 +94,7 @@ const NewArtistSong = () => {
 
       platform.on('ResourceRegistered', handleResourceRegisteredEvent);
 
+      setProgress(25);
       const ipfsHash = await uploadSongToIpfs(data.songTitle, data.songFile[0]);
 
       // TODO: figure out the actual gas needed here
@@ -121,7 +117,6 @@ const NewArtistSong = () => {
       <Form
         onSubmit={handleSubmit(onSubmit, onError)}
         encType="multipart/form-data"
-        ref={newForm}
       >
         <Form.Group className="mb-3" controlId="formSongTitle">
           <Form.Label>Title</Form.Label>
