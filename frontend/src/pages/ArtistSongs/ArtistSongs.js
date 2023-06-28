@@ -59,7 +59,7 @@ const ArtistSongs = () => {
   }
 
   return <>
-    { account === artistAddress  && <Button onClick={() => navigateToNewSong()}>Add a song</Button> }
+    { account === artistAddress.toLowerCase()  && <Button onClick={() => navigateToNewSong()}>Add a song</Button> }
     <ArtistSongsList songs={songs} />
   </>;
 };
