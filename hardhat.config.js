@@ -28,6 +28,7 @@ task(
       ]
     );
 
+    // TODO: in dev. environment -> take this coordinator address from the deploy artifacts
     const impersonatedCoordinator = await ethers.getImpersonatedSigner(VRF_COORDINATOR);
 
     await platform.connect(impersonatedCoordinator).rawFulfillRandomWords(requestId, [value], { gasLimit: 300000 });
@@ -35,13 +36,5 @@ task(
 );
 
 module.exports = {
-  solidity: "0.8.19",
-  networks: {
-    hardhat: {
-      forking: {
-        enabled: true,
-        url: process.env.INFURA_SEPOLIA_URL
-      }
-    }
-  }
+  solidity: "0.8.19"
 };
