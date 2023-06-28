@@ -42,7 +42,7 @@ const RegisterArtist = () => {
         name: artistName
       });
 
-      navigate(`/artists/${assignedId.toHexString()}/songs`);
+      navigate(`/artists/${creator}/songs`);
     }
   }
 
