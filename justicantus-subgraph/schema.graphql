@@ -1,29 +1,6 @@
-type OwnershipTransferred @entity(immutable: true) {
-  id: Bytes!
-  previousOwner: Bytes! # address
-  newOwner: Bytes! # address
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
-}
-
-type RegistrationCreated @entity(immutable: true) {
-  id: Bytes!
-  account: Bytes! # address
-  resourceType: Int! # uint8
-  requestId: BigInt! # uint256
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
-}
-
-type ResourceRegistered @entity(immutable: true) {
-  id: Bytes!
-  account: Bytes! # address
-  resourceType: Int! # uint8
-  Platform_id: BigInt! # uint256
-  data: String! # string
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
+type Artist @entity(immutable: true) {
+  id: ID!
+  account: String!
+  title: String!
+  platformId: BigInt!
 }
