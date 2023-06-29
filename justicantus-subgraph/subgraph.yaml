@@ -14,17 +14,11 @@ dataSources:
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - OwnershipTransferred
-        - RegistrationCreated
-        - ResourceRegistered
+        - Artist
       abis:
         - name: Platform
           file: ./abis/Platform.json
       eventHandlers:
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
-        - event: RegistrationCreated(indexed address,indexed uint8,indexed uint256)
-          handler: handleRegistrationCreated
         - event: ResourceRegistered(indexed address,indexed uint8,indexed uint256,string)
           handler: handleResourceRegistered
       file: ./src/platform.ts
