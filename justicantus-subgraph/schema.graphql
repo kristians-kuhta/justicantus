@@ -1,6 +1,6 @@
 type Artist @entity(immutable: true) {
-  id: ID!
-  account: String!
+  id: Bytes!
+  account: Bytes!
   title: String!
   platformId: BigInt!
 }
