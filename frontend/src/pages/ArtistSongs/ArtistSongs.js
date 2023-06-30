@@ -4,6 +4,8 @@ import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
 
+import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
+
 const ArtistSongsList = ({ songs }) => {
   const { REACT_APP_IPFS_API_URL } = process.env;
   const [ songsData, setSongsData ] = useState([]);
