@@ -9,7 +9,9 @@ export function handleResourceRegistered(event: ResourceRegisteredEvent): void {
   //       If we decide to add other resources, this logic will have to branch based on resourceType.
   if (event.params.resourceType !== 1) return;
 
-  const { account, id, data } = event.params;
+  const account = event.params.account;
+  const id = event.params.id;
+  const data = event.params.data;
 
   let artist = new Artist(
     event.transaction.hash.concatI32(event.logIndex.toI32())
