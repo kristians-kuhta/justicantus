@@ -4,3 +4,11 @@ type Artist @entity(immutable: true) {
   title: String!
   platformId: BigInt!
 }
+
+type _Schema_
+  @fulltext(
+    name: "artistSearch"
+    language: en
+    algorithm: rank
+    include: [{ entity: "Artist", fields: [{ name: "title" }] }]
+  )
