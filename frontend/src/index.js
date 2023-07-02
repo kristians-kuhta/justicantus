@@ -22,6 +22,14 @@ const { REACT_APP_SUBGRAPH_ENDPOINT } = process.env;
 const apolloClient = new ApolloClient({
   uri: REACT_APP_SUBGRAPH_ENDPOINT,
   cache: new InMemoryCache(),
+  defaultOptions: {
+    query: {
+      fetchPolicy: 'cache-and-network', // Disable caching for queries
+    },
+    mutate: {
+      fetchPolicy: 'cache-and-network', // Disable caching for mutations
+    },
+  },
 });
 
 // TODO: consider extracting this to another file
