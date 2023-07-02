@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
+import Form from 'react-bootstrap/Form';
 
 import { useQuery, gql } from '@apollo/client';
 
-const GET_DATA = gql`
+const ARTISTS_QUERY = gql`
   query {
     artists {
       account
@@ -15,35 +16,62 @@ const GET_DATA = gql`
 `;
 
 const Artists = () => {
-  const navigate = useNavigate();
-  const { loading, error, data } = useQuery(GET_DATA);
-  const [ artists, setArtists ] = useState([]);
+  const [artistsFound, setArtistsFound] = useState(null);
 
-  useEffect(() => {
-    if (data) {
-      setArtists(data.artists);
-    }
-  }, [setArtists, data]);
+  const { loading, error, data } = useQuery(ARTISTS_QUERY);
 
-  const navigateToArtistSongs = (artistAddress) => {
-    navigate(`/artists/${artistAddress}/songs`);
+  const handleSearch = async (evt) => {
+    evt.preventDefault();
+
+    const artistName = evt.target.querySelector('#artistName').value;
+
+    const filteredArtists = data.artists.filter((artist) => {
+      return artist.title.toLowerCase().includes(artistName.toLowerCase());
+    });
+
+    setArtistsFound(filteredArtists);
+  };
+
+  if (loading) {
+    return <div className='mx-auto mt-3'><p>Loading artists...</p></div>;
   }
 
   if (!data) {
     return <div className='mx-auto mt-3'><p>No artists yet.</p><p>Stick around!</p></div>;
   }
 
-  return <ListGroup variant='flush'>
-    {
-      artists.map((artist) => (
-        <ListGroup.Item as='li' variant='dark' key={777} className='d-flex align-items-center justify-content-around' >
-          <Link to={`/artists/${artist.account}/songs`}>
-            { artist.title }
-          </Link>
-        </ListGroup.Item>)
-      )
-    }
-  </ListGroup>;
+  // NOTE: if search is performed we display the results, even when nothing is found
+  const artists = artistsFound ? artistsFound : data.artists;
+
+  // TODO: extract to separate components
+  return <>
+    <Form onSubmit={handleSearch}>
+      <Form.Group className="mb-3" >
+        <Form.Control
+          type="text"
+          placeholder="Artist name..."
+          id="artistName"
+        />
+      </Form.Group>
+
+      <Button variant="primary" type="submit" >
+        Search
+      </Button>
+    </Form>
+    <ListGroup variant='flush'>
+      {
+        artists.map((artist) => (
+          <ListGroup.Item as='li' variant='dark' key={artist.account} className='d-flex align-items-center justify-content-around' >
+            <Link to={`/artists/${artist.account}/songs`}>
+              { artist.title }
+            </Link>
+          </ListGroup.Item>)
+        )
+      }
+      { artistsFound && artistsFound.length === 0 && <p>Did not find matching artists! Try a different search phrase!</p> }
+
+    </ListGroup>
+  </>;
 };
 
 export default Artists;
