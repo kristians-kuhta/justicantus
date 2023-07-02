@@ -12,7 +12,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 const ARTIST_RESOURCE_TYPE = 1;
 
 const RegisterArtist = () => {
-  const { account, platform, setMessage, setArtist } = useOutletContext();
+  const { account, platform, setMessage, setLoggedInArtist } = useOutletContext();
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
 
@@ -37,12 +37,12 @@ const RegisterArtist = () => {
 
       const artistName = await platform.getArtistName(account);
 
-      setArtist({
+      setLoggedInArtist({
         id: assignedId,
         name: artistName
       });
 
-      navigate(`/artists/${assignedId.toHexString()}/songs`);
+      navigate(`/artists/${creator}/songs`);
     }
   }
 
@@ -59,7 +59,8 @@ const RegisterArtist = () => {
           // and fulfill VRF request manually via the hardhat task.
           // In mainnet or testnet the requests will be fulfilled by Chainlink.
           if (process.env.NODE_ENV !== 'production') {
-            console.log(`[Artist] Request ID: ${requestId.toHexString()}`);
+            console.log(`[Artist] npx hardhat vrf_fulfill ${requestId.toHexString()} 123 --network localhost`);
+            console.log('(replace the 123 with the number you want to be assigned)');
           }
           setProgress(75);
         }

@@ -9,3 +9,11 @@ typechain-types
 cache
 artifacts
 
+docker/graph-node/data
+
+/justicantus_subgraph/tests/.bin/*
+/justicantus_subgraph/tests/.docker/*
+/justicantus_subgraph/build/*
+/justicantus_subgraph/generated/*
+
+
