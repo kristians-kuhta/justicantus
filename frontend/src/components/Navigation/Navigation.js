@@ -2,7 +2,6 @@ import React from 'react';
 
 import { Container, Nav, Navbar } from 'react-bootstrap';
 import { NavLink } from 'react-router-dom';
-import { BigNumber } from 'ethers';
 
 const Navigation = ({ account, loggedInArtist }) => {
   return <Navbar bg='dark' variant='dark' expand='lg'>
