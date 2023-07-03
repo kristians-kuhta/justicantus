@@ -333,4 +333,49 @@ describe("Platform", function () {
       ).to.be.revertedWithCustomError(platform, 'NotARegisteredArtist');
     });
   });
+
+  describe('Subscription plans', function () {
+    it('reverts when setting plan by non-owner', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await expect(
+        platform.connect(firstAccount).setSubscriptionPlan(price, timestampIncrease)
+      ).to.be.revertedWith('Ownable: caller is not the owner');
+    });
+
+    it('reverts when trying to set plan and zero price provided', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await expect(
+        platform.setSubscriptionPlan(0, timestampIncrease)
+      ).to.be.reverted;
+    });
+
+    it('reverts when trying to set plan and zero timestamp increase provided', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+
+      await expect(
+        platform.setSubscriptionPlan(price, 0)
+      ).to.be.reverted;
+    });
+
+    it('sets the subscription plan price and timestamp increase', async function () {
+      const { platform } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await expect(
+        platform.setSubscriptionPlan(price, timestampIncrease)
+      ).to.emit(platform, 'SubscriptionPlanAdded').withArgs(price, timestampIncrease);
+    });
+  });
 });

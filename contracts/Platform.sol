@@ -39,6 +39,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     string data
   );
 
+  event SubscriptionPlanAdded(uint256 price, uint256 timestampIncrease);
+
   error ArtistNameRequired();
   error ArtistAlreadyRegistered();
   error SongUriRequired();
@@ -47,6 +49,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   // TODO: review which ones of these mappings need to be public
   mapping(uint256 id => string name) public artistNames;
   mapping(address account => uint256 id) public artistIds;
+  mapping(uint256 price => uint256 interval) private subscriptionPlanIntervals;
 
   mapping(uint256 id => string uri) private songURIs;
   mapping(address account => uint256[] ids) private songIds;
@@ -182,6 +185,16 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     _requireRegisteredArtist();
 
     _createResourceRegistration(ResourceType.Song, uri);
+  }
+
+  function setSubscriptionPlan(uint256 price, uint256 timestampIncrease) external onlyOwner {
+    // NOTE: we assume the owner knows what he is doing, hence no error messages are provided
+    require(price > 0);
+    require(timestampIncrease > 0);
+
+    subscriptionPlanIntervals[price] = timestampIncrease;
+
+    emit SubscriptionPlanAdded(price, timestampIncrease);
   }
 
   function getArtistId(address account) external view returns (uint256) {
