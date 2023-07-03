@@ -1,4 +1,4 @@
-const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyUint } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 
@@ -6,22 +6,26 @@ describe("Platform", function () {
   async function deployInstance() {
     const [owner, firstAccount] = await ethers.getSigners();
 
-    const {
-      VRF_COORDINATOR,
-      SUBSCRIPTION_ID,
-      KEY_HASH,
-      VRF_ADMIN
-    } = process.env;
+    const { KEY_HASH } = process.env;
+    const vrfAdmin = firstAccount;
 
+    const BASE_FEE = '100000000000000000';
+    const GAS_PRICE_LINK = '1000000000';
+    const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
+
+    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2Mock");
+    coordinator = await Coordinator.deploy(BASE_FEE, GAS_PRICE_LINK);
+    await coordinator.deployed();
+
+    // Create the subscription
+    const createSubResponse = await coordinator.connect(vrfAdmin).createSubscription();
+    const subTx = await createSubResponse.wait();
+    subscriptionId = subTx.events[0].args.subId;
+
+    // Fund the subscription
+    await (await coordinator.connect(vrfAdmin).fundSubscription(subscriptionId, SUBSCRIPTION_BALANCE)).wait();
     const Platform = await ethers.getContractFactory("Platform");
-    const platform = await Platform.deploy(
-      VRF_COORDINATOR,
-      SUBSCRIPTION_ID,
-      KEY_HASH
-    );
-
-    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2");
-    const coordinator = await Coordinator.attach(VRF_COORDINATOR);
+    const platform = await Platform.deploy(coordinator.address, subscriptionId, KEY_HASH);
 
     const oneEther = ethers.utils.parseEther('1');
 
@@ -34,12 +38,8 @@ describe("Platform", function () {
       ]
     );
 
-    const vrfAdmin = await ethers.getImpersonatedSigner(VRF_ADMIN);
-
     await (
-      await coordinator.
-        connect(vrfAdmin).
-        addConsumer(SUBSCRIPTION_ID, platform.address, { gasLimit: 300000})
+      await coordinator.connect(vrfAdmin).addConsumer(subscriptionId, platform.address, { gasLimit: 300000})
     ).wait();
 
     return { platform, coordinator, owner, firstAccount, vrfAdmin };
@@ -194,7 +194,7 @@ describe("Platform", function () {
 
   describe('Artist registration', function () {
     it('reverts when registering an artist without name', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance)
 
       await expect(
         platform.registerArtist('')
@@ -326,11 +326,114 @@ describe("Platform", function () {
     });
 
     it('reverts when registering song from an account that is not registered as an artist', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance)
 
       await expect(
         platform.registerSong('something')
       ).to.be.revertedWithCustomError(platform, 'NotARegisteredArtist');
+    });
+  });
+
+  describe('Subscription plans', function () {
+    it('reverts when setting plan by non-owner', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await expect(
+        platform.connect(firstAccount).setSubscriptionPlan(price, timestampIncrease)
+      ).to.be.revertedWith('Ownable: caller is not the owner');
+    });
+
+    it('reverts when trying to set plan and zero price provided', async function () {
+      const { platform } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await expect(
+        platform.setSubscriptionPlan(0, timestampIncrease)
+      ).to.be.reverted;
+    });
+
+    it('reverts when trying to set plan and zero timestamp increase provided', async function () {
+      const { platform } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+
+      await expect(
+        platform.setSubscriptionPlan(price, 0)
+      ).to.be.reverted;
+    });
+
+    it('sets the subscription plan price and timestamp increase', async function () {
+      const { platform } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await expect(
+        platform.setSubscriptionPlan(price, timestampIncrease)
+      ).to.emit(platform, 'SubscriptionPlanAdded').withArgs(price, timestampIncrease);
+    });
+  });
+
+  describe('Subscription creation', function () {
+    it('reverts when subscription already created', async function () {
+      //TODO: get rid of unused firstAccount everywhere
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await ( await platform.setSubscriptionPlan(price, timestampIncrease)).wait();
+      await (await platform.connect(firstAccount).createSubscription({ value: price })).wait();
+
+      await expect(
+        platform.connect(firstAccount).createSubscription({ value: price })
+      ).to.be.revertedWithCustomError(platform, 'SubscriptionAlreadyCreated');
+    });
+
+    it(
+      'reverts when trying to create a subscription and sending value that does not match a plan',
+      async function () {
+        const { platform, firstAccount } = await loadFixture(deployInstance)
+
+        const price = ethers.utils.parseEther('0.005');
+
+        await expect(
+          platform.connect(firstAccount).createSubscription({ value: price })
+        ).to.be.revertedWithCustomError(platform, 'ValueMustMatchOneOfThePlans');
+      }
+    );
+
+    it('reverts when trying to create a subscription without sending value', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      await expect(
+        platform.connect(firstAccount).createSubscription()
+      ).to.be.revertedWithCustomError(platform, 'ValueMustMatchOneOfThePlans');
+    });
+
+    it('creates a subscription', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await ( await platform.setSubscriptionPlan(price, timestampIncrease)).wait();
+
+      const blockTimestamp = await time.latest();
+      const newBlockTimestamp = blockTimestamp + 1;
+      await time.setNextBlockTimestamp(newBlockTimestamp);
+
+      await expect(
+        platform.connect(firstAccount).createSubscription({ value: price })
+      ).to.emit(platform, 'SubscriptionCreated').withArgs(
+        firstAccount.address,
+        newBlockTimestamp + timestampIncrease
+      );
     });
   });
 });
