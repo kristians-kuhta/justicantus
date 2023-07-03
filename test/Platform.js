@@ -194,7 +194,7 @@ describe("Platform", function () {
 
   describe('Artist registration', function () {
     it('reverts when registering an artist without name', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance)
 
       await expect(
         platform.registerArtist('')
@@ -326,7 +326,7 @@ describe("Platform", function () {
     });
 
     it('reverts when registering song from an account that is not registered as an artist', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance)
 
       await expect(
         platform.registerSong('something')
@@ -347,7 +347,7 @@ describe("Platform", function () {
     });
 
     it('reverts when trying to set plan and zero price provided', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance)
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -358,7 +358,7 @@ describe("Platform", function () {
     });
 
     it('reverts when trying to set plan and zero timestamp increase provided', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance)
 
       const price = ethers.utils.parseEther('0.005');
 
