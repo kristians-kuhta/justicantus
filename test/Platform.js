@@ -6,22 +6,26 @@ describe("Platform", function () {
   async function deployInstance() {
     const [owner, firstAccount] = await ethers.getSigners();
 
-    const {
-      VRF_COORDINATOR,
-      SUBSCRIPTION_ID,
-      KEY_HASH,
-      VRF_ADMIN
-    } = process.env;
+    const { KEY_HASH } = process.env;
+    const vrfAdmin = firstAccount;
 
+    const BASE_FEE = '100000000000000000';
+    const GAS_PRICE_LINK = '1000000000';
+    const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
+
+    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2Mock");
+    coordinator = await Coordinator.deploy(BASE_FEE, GAS_PRICE_LINK);
+    await coordinator.deployed();
+
+    // Create the subscription
+    const createSubResponse = await coordinator.connect(vrfAdmin).createSubscription();
+    const subTx = await createSubResponse.wait();
+    subscriptionId = subTx.events[0].args.subId;
+
+    // Fund the subscription
+    await (await coordinator.connect(vrfAdmin).fundSubscription(subscriptionId, SUBSCRIPTION_BALANCE)).wait();
     const Platform = await ethers.getContractFactory("Platform");
-    const platform = await Platform.deploy(
-      VRF_COORDINATOR,
-      SUBSCRIPTION_ID,
-      KEY_HASH
-    );
-
-    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2");
-    const coordinator = await Coordinator.attach(VRF_COORDINATOR);
+    const platform = await Platform.deploy(coordinator.address, subscriptionId, KEY_HASH);
 
     const oneEther = ethers.utils.parseEther('1');
 
@@ -34,12 +38,8 @@ describe("Platform", function () {
       ]
     );
 
-    const vrfAdmin = await ethers.getImpersonatedSigner(VRF_ADMIN);
-
     await (
-      await coordinator.
-        connect(vrfAdmin).
-        addConsumer(SUBSCRIPTION_ID, platform.address, { gasLimit: 300000})
+      await coordinator.connect(vrfAdmin).addConsumer(subscriptionId, platform.address, { gasLimit: 300000})
     ).wait();
 
     return { platform, coordinator, owner, firstAccount, vrfAdmin };
