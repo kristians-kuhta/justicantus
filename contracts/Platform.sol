@@ -39,16 +39,20 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     string data
   );
 
+  event SubscriptionCreated(address account, uint256 expirationTimestamp);
   event SubscriptionPlanAdded(uint256 price, uint256 timestampIncrease);
 
   error ArtistNameRequired();
   error ArtistAlreadyRegistered();
   error SongUriRequired();
   error NotARegisteredArtist();
+  error SubscriptionAlreadyCreated();
+  error ValueMustMatchOneOfThePlans();
 
   // TODO: review which ones of these mappings need to be public
   mapping(uint256 id => string name) public artistNames;
   mapping(address account => uint256 id) public artistIds;
+  mapping(address account => uint256 expirationTimestamp) public subscriptions;
   mapping(uint256 price => uint256 interval) private subscriptionPlanIntervals;
 
   mapping(uint256 id => string uri) private songURIs;
@@ -57,6 +61,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
   // Requests are used for generating IDs (both for an artists and a song)
   mapping(uint256 requestId => Registration registration) private registrations;
+
 
   VRFCoordinatorV2Interface immutable vrfCoordinator;
   uint64 private immutable subscriptionId;
@@ -98,6 +103,18 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   function _requireRegisteredArtist() internal view {
     if (artistIds[msg.sender] == 0) {
       revert NotARegisteredArtist();
+    }
+  }
+
+  function _requireSubscriptionNotCreated() internal view {
+    if (subscriptions[msg.sender] > 0) {
+      revert SubscriptionAlreadyCreated();
+    }
+  }
+
+  function _requireValueMatchesOneOfThePlans(uint256 subscriptionInterval) internal pure {
+    if (subscriptionInterval == 0) {
+      revert ValueMustMatchOneOfThePlans();
     }
   }
 
@@ -185,6 +202,18 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     _requireRegisteredArtist();
 
     _createResourceRegistration(ResourceType.Song, uri);
+  }
+
+  function createSubscription() external payable {
+    _requireSubscriptionNotCreated();
+
+    uint256 timestampIncrease = subscriptionPlanIntervals[msg.value];
+    _requireValueMatchesOneOfThePlans(timestampIncrease);
+
+    uint256 expirationTimestamp = block.timestamp + timestampIncrease;
+    subscriptions[msg.sender] = expirationTimestamp;
+
+    emit SubscriptionCreated(msg.sender, expirationTimestamp);
   }
 
   function setSubscriptionPlan(uint256 price, uint256 timestampIncrease) external onlyOwner {

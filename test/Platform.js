@@ -1,4 +1,4 @@
-const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
+const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyUint } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 
@@ -376,6 +376,64 @@ describe("Platform", function () {
       await expect(
         platform.setSubscriptionPlan(price, timestampIncrease)
       ).to.emit(platform, 'SubscriptionPlanAdded').withArgs(price, timestampIncrease);
+    });
+  });
+
+  describe('Subscription creation', function () {
+    it('reverts when subscription already created', async function () {
+      //TODO: get rid of unused firstAccount everywhere
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await ( await platform.setSubscriptionPlan(price, timestampIncrease)).wait();
+      await (await platform.connect(firstAccount).createSubscription({ value: price })).wait();
+
+      await expect(
+        platform.connect(firstAccount).createSubscription({ value: price })
+      ).to.be.revertedWithCustomError(platform, 'SubscriptionAlreadyCreated');
+    });
+
+    it(
+      'reverts when trying to create a subscription and sending value that does not match a plan',
+      async function () {
+        const { platform, firstAccount } = await loadFixture(deployInstance)
+
+        const price = ethers.utils.parseEther('0.005');
+
+        await expect(
+          platform.connect(firstAccount).createSubscription({ value: price })
+        ).to.be.revertedWithCustomError(platform, 'ValueMustMatchOneOfThePlans');
+      }
+    );
+
+    it('reverts when trying to create a subscription without sending value', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      await expect(
+        platform.connect(firstAccount).createSubscription()
+      ).to.be.revertedWithCustomError(platform, 'ValueMustMatchOneOfThePlans');
+    });
+
+    it('creates a subscription', async function () {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await ( await platform.setSubscriptionPlan(price, timestampIncrease)).wait();
+
+      const blockTimestamp = await time.latest();
+      const newBlockTimestamp = blockTimestamp + 1;
+      await time.setNextBlockTimestamp(newBlockTimestamp);
+
+      await expect(
+        platform.connect(firstAccount).createSubscription({ value: price })
+      ).to.emit(platform, 'SubscriptionCreated').withArgs(
+        firstAccount.address,
+        newBlockTimestamp + timestampIncrease
+      );
     });
   });
 });
