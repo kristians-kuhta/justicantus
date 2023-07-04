@@ -245,4 +245,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   function getArtistSongsCount(address artist) external view returns (uint256) {
     return songsCount[artist];
   }
+
+  function isActiveSubscriber(address account) external view returns (bool) {
+    return subscriptions[account] >= block.timestamp;
+  }
 }
