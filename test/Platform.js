@@ -434,6 +434,46 @@ describe("Platform", function () {
         firstAccount.address,
         newBlockTimestamp + timestampIncrease
       );
+
+      expect(
+        await platform.isActiveSubscriber(firstAccount.address)
+      ).to.eq(true);
+    });
+
+    it.only('returns false when checking if expired subscriber is active', async function () {
+
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const price = ethers.utils.parseEther('0.005');
+      const timestampIncrease = 15*24*60*60; // 15 days
+
+      await ( await platform.setSubscriptionPlan(price, timestampIncrease)).wait();
+
+      const blockTimestamp = await time.latest();
+      const newBlockTimestamp = blockTimestamp + 1;
+      await time.setNextBlockTimestamp(newBlockTimestamp);
+
+      await expect(
+        platform.connect(firstAccount).createSubscription({ value: price })
+      ).to.emit(platform, 'SubscriptionCreated').withArgs(
+        firstAccount.address,
+        newBlockTimestamp + timestampIncrease
+      );
+
+      const timestampNow = await time.latest();
+      const lastValidTimestamp = timestampNow + timestampIncrease;
+      await time.increaseTo(lastValidTimestamp);
+
+      expect(
+        await platform.isActiveSubscriber(firstAccount.address)
+      ).to.eq(true);
+
+      const expiredTimestamp = lastValidTimestamp + 1;
+      await time.increaseTo(expiredTimestamp);
+
+      expect(
+        await platform.isActiveSubscriber(firstAccount.address)
+      ).to.eq(false);
     });
   });
 });
