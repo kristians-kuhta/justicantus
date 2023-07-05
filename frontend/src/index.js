@@ -5,6 +5,7 @@ import RegisterArtist from './pages/RegisterArtist/RegisterArtist';
 import ArtistSongs from './pages/ArtistSongs/ArtistSongs';
 import Artists from './pages/Artists/Artists';
 import NewArtistSong from './pages/NewArtistSong/NewArtistSong';
+import UserSubscription from './pages/UserSubscription/UserSubscription';
 
 import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
 
@@ -55,7 +56,11 @@ const router = createBrowserRouter([
       {
         path: "artists/:artistAddress/songs/new",
         element: <NewArtistSong />
-      }
+      },
+      {
+        path: "users/subscription",
+        element: <UserSubscription/>,
+      },
     ],
   },
 ]);
