@@ -53,7 +53,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   mapping(uint256 id => string name) public artistNames;
   mapping(address account => uint256 id) public artistIds;
   mapping(address account => uint256 expirationTimestamp) public subscriptions;
-  mapping(uint256 price => uint256 interval) private subscriptionPlanIntervals;
+  mapping(uint256 price => uint256 interval) public subscriptionPlanIntervals;
 
   mapping(uint256 id => string uri) private songURIs;
   mapping(address account => uint256[] ids) private songIds;

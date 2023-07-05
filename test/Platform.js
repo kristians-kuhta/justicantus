@@ -376,6 +376,10 @@ describe("Platform", function () {
       await expect(
         platform.setSubscriptionPlan(price, timestampIncrease)
       ).to.emit(platform, 'SubscriptionPlanAdded').withArgs(price, timestampIncrease);
+
+      expect(
+        await platform.subscriptionPlanIntervals(price)
+      ).to.eq(timestampIncrease);
     });
   });
 
@@ -440,7 +444,7 @@ describe("Platform", function () {
       ).to.eq(true);
     });
 
-    it.only('returns false when checking if expired subscriber is active', async function () {
+    it('returns false when checking if expired subscriber is active', async function () {
 
       const { platform, firstAccount } = await loadFixture(deployInstance)
 
