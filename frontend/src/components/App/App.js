@@ -1,4 +1,3 @@
-import './App.css';
 import React, { useState, useEffect } from 'react';
 
 import Navigation from '../Navigation/Navigation.js';
@@ -63,8 +62,15 @@ export const appLoader = async () => {
     const artistId = await platform.artistIds(account);
     const artistName = await platform.getArtistName(account);
     const artistData = { id: artistId, name: artistName };
+    const activeSubscriber = await platform.isActiveSubscriber(account);
 
-    return { account, platform, artistData, networkSwitchNeccessary };
+    return {
+      account,
+      platform,
+      artistData,
+      subscriberData: activeSubscriber ? account : null,
+      networkSwitchNeccessary
+    };
   }
 
   return { account, networkSwitchNeccessary };
@@ -77,28 +83,41 @@ function getExpectedChain() {
 function App() {
   const [ message, setMessage ] = useState({ text: '', type: null });
   const [ loggedInArtist, setLoggedInArtist ] = useState({ id: 0, name: '' });
+  const [ subscriber, setSubscriber ] = useState(null);
   const {
     account,
     platform,
     artistData,
+    subscriberData,
     networkSwitchNeccessary
   } = useLoaderData();
 
   useEffect(() => {
     setLoggedInArtist(artistData);
-  }, [setLoggedInArtist, artistData]);
+    setSubscriber(subscriberData);
+  }, [setLoggedInArtist, setSubscriber, artistData, subscriberData]);
 
   if (networkSwitchNeccessary) {
     return <NetworkSwitchModal chainName={getExpectedChain().name}/>;
   }
 
+  const outletContext = {
+    account,
+    platform,
+    setMessage,
+    loggedInArtist,
+    setLoggedInArtist,
+    subscriber,
+    setSubscriber
+  };
+
   return (
     <>
-      <Navigation account={account} loggedInArtist={loggedInArtist} />
+      <Navigation account={account} loggedInArtist={loggedInArtist} subscriber={subscriber} />
       { message.text.length > 0 &&
         <Alert variant={message.type}>{message.text}</Alert>
       }
-      <Outlet context={{ account, platform, setMessage, loggedInArtist, setLoggedInArtist }} />
+      <Outlet context={outletContext} />
     </>
   );
 }

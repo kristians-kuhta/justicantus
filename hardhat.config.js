@@ -35,6 +35,21 @@ task(
   }
 );
 
+task(
+  'add_subscription_plan',
+  'Add a subscription plan'
+).addPositionalParam('price').addPositionalParam('duration').setAction(
+  async ({ price, duration }, hre, runSuper) => {
+    // TODO: when deploying -> store the addresses both in hardhat project and frontend
+    const contractAddresses = require('./frontend/src/contracts/contract-addresses.json');
+
+    const Platform = await ethers.getContractFactory("Platform");
+    const platform = await Platform.attach(contractAddresses.Platform);
+
+    await (await platform.setSubscriptionPlan(price, duration, { gasLimit: 300000 })).wait();
+  }
+);
+
 module.exports = {
   solidity: "0.8.19"
 };

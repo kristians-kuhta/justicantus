@@ -3,7 +3,7 @@ import React from 'react';
 import { Container, Nav, Navbar } from 'react-bootstrap';
 import { NavLink } from 'react-router-dom';
 
-const Navigation = ({ account, loggedInArtist }) => {
+const Navigation = ({ account, loggedInArtist, subscriber }) => {
   return <Navbar bg='dark' variant='dark' expand='lg'>
     <Container>
       <Navbar.Brand bg='light' href='/'>Justicantus</Navbar.Brand>
@@ -11,9 +11,19 @@ const Navigation = ({ account, loggedInArtist }) => {
       <Navbar.Collapse id='top-navbar-nav'>
         <Nav className="w-100 justify-content-between">
           <div className="d-flex">
-            { loggedInArtist.id.toString() === '0' &&
-              <NavLink to="artists/register" className="nav-link">
-                Artist registration
+            { loggedInArtist.id.toString() === '0' && !subscriber &&
+                <>
+                  <NavLink to="artists/register" className="nav-link">
+                    Become an artist
+                  </NavLink>
+                  <NavLink to="users/subscription" className="nav-link">
+                    Subscribe
+                  </NavLink>
+                </>
+            }
+
+            { subscriber && <NavLink to="users/subscription" className="nav-link">
+                Fund subscription
               </NavLink>
             }
             { loggedInArtist.id > 0 &&

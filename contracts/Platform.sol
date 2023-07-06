@@ -39,21 +39,33 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     string data
   );
 
-  event SubscriptionCreated(address account, uint256 expirationTimestamp);
-  event SubscriptionPlanAdded(uint256 price, uint256 timestampIncrease);
+  event SubscriptionCreated(
+    address indexed account,
+    uint256 indexed expirationTimestamp,
+    uint256 indexed timestampIncrease
+  );
+
+  event SubscriptionFunded(
+    address indexed account,
+    uint256 indexed expirationTimestamp,
+    uint256 indexed timestampIncrease
+  );
+
+  event SubscriptionPlanAdded(uint256 indexed price, uint256 indexed timestampIncrease);
 
   error ArtistNameRequired();
   error ArtistAlreadyRegistered();
   error SongUriRequired();
   error NotARegisteredArtist();
   error SubscriptionAlreadyCreated();
+  error SubscriptionNotCreated();
   error ValueMustMatchOneOfThePlans();
 
   // TODO: review which ones of these mappings need to be public
   mapping(uint256 id => string name) public artistNames;
   mapping(address account => uint256 id) public artistIds;
   mapping(address account => uint256 expirationTimestamp) public subscriptions;
-  mapping(uint256 price => uint256 interval) private subscriptionPlanIntervals;
+  mapping(uint256 price => uint256 interval) public subscriptionPlanIntervals;
 
   mapping(uint256 id => string uri) private songURIs;
   mapping(address account => uint256[] ids) private songIds;
@@ -109,6 +121,12 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   function _requireSubscriptionNotCreated() internal view {
     if (subscriptions[msg.sender] > 0) {
       revert SubscriptionAlreadyCreated();
+    }
+  }
+
+  function _requireSubscriptionCreated() internal view {
+    if (subscriptions[msg.sender] == 0) {
+      revert SubscriptionNotCreated();
     }
   }
 
@@ -213,7 +231,27 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     uint256 expirationTimestamp = block.timestamp + timestampIncrease;
     subscriptions[msg.sender] = expirationTimestamp;
 
-    emit SubscriptionCreated(msg.sender, expirationTimestamp);
+    emit SubscriptionCreated(msg.sender, expirationTimestamp, timestampIncrease);
+  }
+
+  function fundSubscription() external payable {
+    _requireSubscriptionCreated();
+
+    uint256 timestampIncrease = subscriptionPlanIntervals[msg.value];
+    _requireValueMatchesOneOfThePlans(timestampIncrease);
+
+    uint256 expirationTimestamp;
+    uint256 subscriptionTimestamp = subscriptions[msg.sender];
+
+    if (subscriptionTimestamp < block.timestamp) {
+      expirationTimestamp = block.timestamp + timestampIncrease;
+    } else {
+      expirationTimestamp = subscriptionTimestamp + timestampIncrease;
+    }
+
+    subscriptions[msg.sender] = expirationTimestamp;
+
+    emit SubscriptionFunded(msg.sender, expirationTimestamp, timestampIncrease);
   }
 
   function setSubscriptionPlan(uint256 price, uint256 timestampIncrease) external onlyOwner {
@@ -244,5 +282,9 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
   function getArtistSongsCount(address artist) external view returns (uint256) {
     return songsCount[artist];
+  }
+
+  function isActiveSubscriber(address account) external view returns (bool) {
+    return subscriptions[account] >= block.timestamp;
   }
 }
