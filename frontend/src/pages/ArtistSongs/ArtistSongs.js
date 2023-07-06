@@ -6,7 +6,7 @@ import ListGroup from 'react-bootstrap/ListGroup';
 
 import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
 
-const ArtistSongsList = ({ songs }) => {
+const ArtistSongsList = ({ songs, accountIsArtist, subscriber }) => {
   const { REACT_APP_IPFS_API_URL } = process.env;
   const [ songsData, setSongsData ] = useState([]);
 
@@ -22,12 +22,13 @@ const ArtistSongsList = ({ songs }) => {
 
   const songListItems = () => {
     return songsData.map((song) => {
-      return <ListGroup.Item as='li' variant='dark' key={song.cid} className='d-flex align-items-center justify-content-around' >
+      return <ListGroup.Item as='li' variant='dark' key={song.title} className='d-flex align-items-center justify-content-around' >
         {song.title}
-        <audio controls>
-          <source src={`${REACT_APP_IPFS_API_URL}${song.cid}`} />
-          Your browser does not support the audio tag.
-        </audio>
+        { (subscriber || accountIsArtist()) && <audio controls>
+            <source src={`${REACT_APP_IPFS_API_URL}${song.cid}`} />
+            Your browser does not support the audio tag.
+          </audio>
+        }
       </ListGroup.Item>;
     });
   };
@@ -36,7 +37,7 @@ const ArtistSongsList = ({ songs }) => {
 };
 
 const ArtistSongs = () => {
-  const { platform, account } = useOutletContext();
+  const { platform, account, subscriber } = useOutletContext();
   const navigate = useNavigate();
   const [songs, setSongs] = useState({});
   const { artistAddress } = useParams();
@@ -60,9 +61,13 @@ const ArtistSongs = () => {
     navigate(`/artists/${artistAddress}/songs/new`);
   }
 
+  const accountIsArtist = () => {
+    return account === artistAddress.toLowerCase();
+  };
+
   return <>
-    { account === artistAddress.toLowerCase()  && <Button onClick={() => navigateToNewSong()}>Add a song</Button> }
-    <ArtistSongsList songs={songs} />
+    { accountIsArtist  && <Button onClick={() => navigateToNewSong()}>Add a song</Button> }
+    <ArtistSongsList songs={songs} accountIsArtist={accountIsArtist} subscriber={subscriber} />
   </>;
 };
 
