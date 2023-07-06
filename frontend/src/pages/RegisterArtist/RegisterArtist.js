@@ -47,6 +47,8 @@ const RegisterArtist = () => {
   }
 
   const onSubmit = async (data) => {
+    setMessage({ text: '', type: null });
+
     setProgress(25);
 
     try {
