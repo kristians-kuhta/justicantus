@@ -89,6 +89,8 @@ async function ensureSubsciberSignatureIsSigned(provider) {
     signature = await signer.signMessage(SUBSCRIBER_SIGNATURE_MESSAGE);
     localStorage.setItem('subscriberSignature', signature);
   }
+
+  return signature;
 }
 
 function getExpectedChain() {
@@ -117,7 +119,9 @@ function App() {
 
   useEffect(() => {
     if (subscriber) {
-      setSubscriberSignature(ensureSubsciberSignatureIsSigned(provider));
+      ensureSubsciberSignatureIsSigned(provider).then((generatedSignature) => {
+        setSubscriberSignature(generatedSignature);
+      });
     }
   }, [subscriber, setSubscriberSignature, provider]);
 
