@@ -10,6 +10,9 @@ import { ethers } from "ethers";
 import Alert from 'react-bootstrap/Alert';
 import { useLoaderData } from 'react-router-dom';
 
+// TODO: think about if this message should be moved to a view function
+const SUBSCRIBER_SIGNATURE_MESSAGE = 'I want to subscribe';
+
 const CHAINS = {
   // Hardhat node
   development: {
@@ -53,6 +56,7 @@ export const appLoader = async () => {
   });
 
   if (!networkSwitchNeccessary) {
+
     const platform = new ethers.Contract(
       contractAddresses.Platform, // contract address
       PlatformArtifact.abi, // contract abi (meta-data)
@@ -67,6 +71,7 @@ export const appLoader = async () => {
     return {
       account,
       platform,
+      provider,
       artistData,
       subscriberData: activeSubscriber ? account : null,
       networkSwitchNeccessary
@@ -74,6 +79,16 @@ export const appLoader = async () => {
   }
 
   return { account, networkSwitchNeccessary };
+}
+
+async function ensureSubsciberSignatureIsSigned(provider) {
+  let signature = localStorage.getItem('subscriberSignature');
+
+  if (!signature) {
+    const signer = provider.getSigner();
+    signature = await signer.signMessage(SUBSCRIBER_SIGNATURE_MESSAGE);
+    localStorage.setItem('subscriberSignature', signature);
+  }
 }
 
 function getExpectedChain() {
@@ -84,9 +99,12 @@ function App() {
   const [ message, setMessage ] = useState({ text: '', type: null });
   const [ loggedInArtist, setLoggedInArtist ] = useState({ id: 0, name: '' });
   const [ subscriber, setSubscriber ] = useState(null);
+  const [ subscriberSignature, setSubscriberSignature ] = useState(null);
+
   const {
     account,
     platform,
+    provider,
     artistData,
     subscriberData,
     networkSwitchNeccessary
@@ -96,6 +114,12 @@ function App() {
     setLoggedInArtist(artistData);
     setSubscriber(subscriberData);
   }, [setLoggedInArtist, setSubscriber, artistData, subscriberData]);
+
+  useEffect(() => {
+    if (subscriber) {
+      setSubscriberSignature(ensureSubsciberSignatureIsSigned(provider));
+    }
+  }, [subscriber, setSubscriberSignature, provider]);
 
   if (networkSwitchNeccessary) {
     return <NetworkSwitchModal chainName={getExpectedChain().name}/>;
@@ -108,7 +132,8 @@ function App() {
     loggedInArtist,
     setLoggedInArtist,
     subscriber,
-    setSubscriber
+    setSubscriber,
+    subscriberSignature
   };
 
   return (
