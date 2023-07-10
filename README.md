@@ -57,6 +57,8 @@ Create a subgraph by navigating to `justicantus-subgraph` and doing:
 ```
 graph create --node http://localhost:8020/ your-github-username/justicantus-subgraph
 ```
+At the moment you need to change the `justicantus-subgraph/subgraph.yaml` file and set the correct deployment address for the first data source, which can be obtained from the output of `bin/dev` script or within the `frontend/src/contracts/contract-addresses.json` file.
+This might be changed in the next iterations.
 
 Deploy a subgraph by doing:
 ```
