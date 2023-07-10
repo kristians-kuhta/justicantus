@@ -92,7 +92,7 @@ As you might have guessed from the message, you need to choose what kind of (uni
   Make sure that the selected ID is unique in the artist's or song's scope. 
   If you set the same ID for two songs this will overwrite data in the smart contract.
 
-## Running test
+## Running tests
 The project has these types of tests:
 * smart contract unit tests
 * subgraph tests
