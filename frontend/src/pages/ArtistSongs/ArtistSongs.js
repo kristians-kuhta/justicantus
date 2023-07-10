@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import Button from 'react-bootstrap/Button';
@@ -44,26 +44,18 @@ const ArtistSongs = () => {
   const [songs, setSongs] = useState([]);
   const { artistAddress } = useParams();
   const [trackingInterval, setTrackingInterval] = useState(null);
+  const [playbackEndedSongId, setPlaybackEndedSongId] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      const songsCount = await platform.getArtistSongsCount(artistAddress);
-      let songsData = [];
+  const sendTrackingEvent = useCallback((song) => {
+    const signature = localStorage.getItem('subscriberSignature');
+    const progressSeconds = song.audio.currentTime;
 
-      for(let i = 0; i < songsCount; i++) {
-        const id = await platform.getArtistSongId(artistAddress, i);
-        const uri = await platform.getSongUri(id);
-        const metadata = (await axios.get(`${REACT_APP_IPFS_API_URL}${uri}`)).data || {};
-        const audio = new Audio(`${REACT_APP_IPFS_API_URL}${metadata.cid}`);
-        songsData.push({ order: i, id, uri, title: metadata.title, audio, playing: false });
-      }
-
-      setSongs(songsData);
-    })();
-  }, [platform, setSongs, artistAddress]);
+    console.log(`Going to update played minutes`);
+    console.log({songId: song.id, progressSeconds, subscriber, signature });
+  }, [subscriber]);
 
   // For both play and pause/stop events
-  const handleSongPlay = (songId, subscriber) => {
+  const handleSongPlay = useCallback((songId, subscriber) => {
     let song = songs.find((sng) => sng.id === songId);
 
     if (song.playing) {
@@ -71,17 +63,15 @@ const ArtistSongs = () => {
       song.audio.pause();
 
       if (subscriber) {
+        // Sending
+        sendTrackingEvent(song);
         clearInterval(trackingInterval);
       }
     } else {
       if (subscriber) {
         setTrackingInterval(
           setInterval(() => {
-            const signature = localStorage.getItem('subscriberSignature');
-            const progressSeconds = song.audio.currentTime;
-
-            console.log(`Going to update played minutes`);
-            console.log({songId: song.id, progressSeconds, subscriber, signature });
+            sendTrackingEvent(song);
           }, TRACKING_INTERVAL_MILLISECONDS)
         );
       }
@@ -93,7 +83,37 @@ const ArtistSongs = () => {
     const otherSongs = songs.filter((sng) => sng.id !== songId);
     const newSongs = [ ...otherSongs, song ].sort((a, b) => a.order - b.order);
     setSongs(newSongs);
+  }, [songs, setSongs, setTrackingInterval, trackingInterval, sendTrackingEvent]);
+
+  const handleSongEnded = (songId) => {
+    setPlaybackEndedSongId(songId);
   };
+
+  useEffect(() => {
+    if (playbackEndedSongId === null) return;
+
+    handleSongPlay(playbackEndedSongId, subscriber);
+
+    setPlaybackEndedSongId(null);
+  }, [playbackEndedSongId, handleSongPlay, subscriber, setPlaybackEndedSongId]);
+
+  useEffect(() => {
+    (async () => {
+      const songsCount = await platform.getArtistSongsCount(artistAddress);
+      let songsData = [];
+
+      for(let i = 0; i < songsCount; i++) {
+        const id = await platform.getArtistSongId(artistAddress, i);
+        const uri = await platform.getSongUri(id);
+        const metadata = (await axios.get(`${REACT_APP_IPFS_API_URL}${uri}`)).data || {};
+        const audio = new Audio(`${REACT_APP_IPFS_API_URL}${metadata.cid}`);
+        audio.addEventListener('ended', () => handleSongEnded(id.toString()));
+        songsData.push({ order: i, id: id.toString(), uri, title: metadata.title, audio, playing: false });
+      }
+
+      setSongs(songsData);
+    })();
+  }, [platform, setSongs, artistAddress]);
 
   const navigateToNewSong = () => {
     navigate(`/artists/${artistAddress}/songs/new`);
