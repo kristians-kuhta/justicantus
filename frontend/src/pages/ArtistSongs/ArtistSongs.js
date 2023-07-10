@@ -63,7 +63,7 @@ const ArtistSongs = () => {
       song.audio.pause();
 
       if (subscriber) {
-        // Sending
+        // Sending the last event before pausing audio
         sendTrackingEvent(song);
         clearInterval(trackingInterval);
       }
