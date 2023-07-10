@@ -32,6 +32,7 @@ task(
     const impersonatedCoordinator = await ethers.getImpersonatedSigner(VRF_COORDINATOR);
 
     await platform.connect(impersonatedCoordinator).rawFulfillRandomWords(requestId, [value], { gasLimit: 300000 });
+    console.log(`Fulfilled a request (ID=${requestId}) with value ${value}`);
   }
 );
 
@@ -47,6 +48,7 @@ task(
     const platform = await Platform.attach(contractAddresses.Platform);
 
     await (await platform.setSubscriptionPlan(price, duration, { gasLimit: 300000 })).wait();
+    console.log(`Added a subscription plan: ${hre.ethers.utils.formatEther(price)} ETH for timestamp increase of ${duration}`);
   }
 );
 

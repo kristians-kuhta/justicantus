@@ -1,0 +1,12 @@
+#! /bin/bash
+
+# Deploy the platform
+npx hardhat run scripts/deploy.js --network localhost
+
+# Add three different subscription plans
+npx hardhat add_subscription_plan 10000000000000000 2592000 --network localhost
+npx hardhat add_subscription_plan 20000000000000000 5184000 --network localhost
+npx hardhat add_subscription_plan 30000000000000000 7776000 --network localhost
+
+# TODO: consider starting an oracle simulator for dev. environment
+# TODO: start up the subgraph docker instance

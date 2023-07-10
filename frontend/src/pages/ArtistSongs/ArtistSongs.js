@@ -4,32 +4,34 @@ import { useOutletContext, useNavigate, useParams } from 'react-router-dom';
 import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
 
-import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
+import { PlayFill, PauseFill } from 'react-bootstrap-icons';
 
-const ArtistSongsList = ({ songs, accountIsArtist, subscriber }) => {
-  const { REACT_APP_IPFS_API_URL } = process.env;
-  const [ songsData, setSongsData ] = useState([]);
+const { REACT_APP_IPFS_API_URL } = process.env;
+const TRACKING_INTERVAL_MILLISECONDS = 5000; // 5 seconds
 
-  useEffect(() => {
-    (async () => {
-      const data = await Promise.all(Object.entries(songs).map(async ([songId, songURI]) => {
-        return (await axios.get(`${REACT_APP_IPFS_API_URL}${songURI}`)).data;
-      }));
+const PlayControls = ({songId, playing, subscriber, handleSongPlay}) => {
+  if (playing) {
+    return <PauseFill onClick={() => handleSongPlay(songId, subscriber)}></PauseFill>;
+  }
 
-      setSongsData(data);
-    })();
-  },[setSongsData, songs, REACT_APP_IPFS_API_URL]);
+  return <PlayFill onClick={() => handleSongPlay(songId, subscriber)}></PlayFill>;
+};
 
-  const songListItems = () => {
-    return songsData.map((song) => {
-      return <ListGroup.Item as='li' variant='dark' key={song.title} className='d-flex align-items-center justify-content-around' >
+const Song = ({song, playable, subscriber, handleSongPlay}) => {
+  return <ListGroup.Item as='li' variant='dark' key={song.id} className='d-flex align-items-center justify-content-around' >
         {song.title}
-        { (subscriber || accountIsArtist()) && <audio controls>
-            <source src={`${REACT_APP_IPFS_API_URL}${song.cid}`} />
-            Your browser does not support the audio tag.
-          </audio>
+        {
+          playable &&
+            <PlayControls songId={song.id} playing={song.playing} subscriber={subscriber} handleSongPlay={handleSongPlay} />
         }
       </ListGroup.Item>;
+};
+
+const ArtistSongsList = ({ songs, accountIsArtist, subscriber, handleSongPlay }) => {
+  const songListItems = () => {
+    return songs.map((song) => {
+      const playable = (subscriber || accountIsArtist());
+      return <Song key={song.id} song={song} playable={playable} subscriber={subscriber} handleSongPlay={handleSongPlay} />;
     });
   };
 
@@ -39,23 +41,59 @@ const ArtistSongsList = ({ songs, accountIsArtist, subscriber }) => {
 const ArtistSongs = () => {
   const { platform, account, subscriber } = useOutletContext();
   const navigate = useNavigate();
-  const [songs, setSongs] = useState({});
+  const [songs, setSongs] = useState([]);
   const { artistAddress } = useParams();
+  const [trackingInterval, setTrackingInterval] = useState(null);
 
   useEffect(() => {
     (async () => {
       const songsCount = await platform.getArtistSongsCount(artistAddress);
-      let songsObject = {};
+      let songsData = [];
 
       for(let i = 0; i < songsCount; i++) {
-        const songID = await platform.getArtistSongId(artistAddress, i);
-        const songURI = await platform.getSongUri(songID);
-        songsObject[songID] = songURI;
+        const id = await platform.getArtistSongId(artistAddress, i);
+        const uri = await platform.getSongUri(id);
+        const metadata = (await axios.get(`${REACT_APP_IPFS_API_URL}${uri}`)).data || {};
+        const audio = new Audio(`${REACT_APP_IPFS_API_URL}${metadata.cid}`);
+        songsData.push({ order: i, id, uri, title: metadata.title, audio, playing: false });
       }
 
-      setSongs(songsObject);
+      setSongs(songsData);
     })();
   }, [platform, setSongs, artistAddress]);
+
+  // For both play and pause/stop events
+  const handleSongPlay = (songId, subscriber) => {
+    let song = songs.find((sng) => sng.id === songId);
+
+    if (song.playing) {
+      song.playing = false;
+      song.audio.pause();
+
+      if (subscriber) {
+        clearInterval(trackingInterval);
+      }
+    } else {
+      if (subscriber) {
+        setTrackingInterval(
+          setInterval(() => {
+            const signature = localStorage.getItem('subscriberSignature');
+            const progressSeconds = song.audio.currentTime;
+
+            console.log(`Going to update played minutes`);
+            console.log({songId: song.id, progressSeconds, subscriber, signature });
+          }, TRACKING_INTERVAL_MILLISECONDS)
+        );
+      }
+
+      song.playing = true;
+      song.audio.play();
+    }
+
+    const otherSongs = songs.filter((sng) => sng.id !== songId);
+    const newSongs = [ ...otherSongs, song ].sort((a, b) => a.order - b.order);
+    setSongs(newSongs);
+  };
 
   const navigateToNewSong = () => {
     navigate(`/artists/${artistAddress}/songs/new`);
@@ -67,7 +105,12 @@ const ArtistSongs = () => {
 
   return <>
     { accountIsArtist  && <Button onClick={() => navigateToNewSong()}>Add a song</Button> }
-    <ArtistSongsList songs={songs} accountIsArtist={accountIsArtist} subscriber={subscriber} />
+    <ArtistSongsList
+       songs={songs}
+       accountIsArtist={accountIsArtist}
+       subscriber={subscriber}
+       handleSongPlay={handleSongPlay}
+    />
   </>;
 };
 
