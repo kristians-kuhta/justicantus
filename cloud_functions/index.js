@@ -5,7 +5,7 @@ const FormData = require('form-data');
 const axios = require('axios');
 
 const Firestore = require("@google-cloud/firestore");
-const { ethers } = require("ethers");
+const ethers = require("ethers");
 
 const functions = require('@google-cloud/functions-framework');
 
@@ -127,7 +127,7 @@ functions.http('pinFile', (req, res) => {
   busboy.end(req.rawBody);
 });
 
-functions.http('trackPlayback', (req, res) => {
+functions.http('trackPlayback', async (req, res) => {
   if (req.method !== 'POST') {
     // Return a "method not allowed" error
     return res.status(405).end();
@@ -155,6 +155,9 @@ functions.http('trackPlayback', (req, res) => {
   }
 
   try {
+    // TODO: Extract all input validation to a separate function.
+    //       We should validate: song & subscriber existence, and signature validity.
+    //
     // Validate Ethereum signature
     const isValidSignature = await validateSignature(account, signature);
 
@@ -163,23 +166,21 @@ functions.http('trackPlayback', (req, res) => {
       return;
     }
 
-    const isActiveSubscriber = await isAccountActiveSubscriber(account);
-
-    // TODO: implement this check to ensure that only active subscribers
+    // const isActiveSubscriber = await isAccountActiveSubscriber(account);
     //       can submit play data
     // if (!isActiveSubscriber) {
     //   res.status(403).send("Not allowed to track playback");
     // }
 
     // Store the song play record in the database
-    await storeSongPlaybackRecord(songId, account);
+    await storeSongPlaybackRecord(res, songId, account);
 
     res.status(200).send("Song play record stored successfully");
   } catch (error) {
     console.error("Error:", error);
-    res.status(500).send("Internal Server Error");
+    res.status(500).send("Oops, an error occured!");
   }
-};
+});
 
 async function validateSignature(account, signature) {
   // TODO: consider using view function instead of hard-coding this
@@ -189,25 +190,24 @@ async function validateSignature(account, signature) {
   return signer.toLowerCase() === account.toLowerCase();
 }
 
-async function storeSongPlaybackRecord(songId, account) {
+async function storeSongPlaybackRecord(res, songId, account) {
   const firestore = new Firestore({
     projectId: process.env.FIRESTORE_PROJECT_ID,
     timestampsInSnapshots: true
   });
 
-  const docRef = firestore.collection("songPlayRecords").doc(songId);
+  const songDocPath = songId.toString();
+  const docRef = firestore.collection("songPlayRecords").doc(songDocPath);
 
   // Get the existing song played seconds
   const doc = await docRef.get();
 
   let existingSecondsPlayed = 0;
 
-  if (!doc.exists) {
-    return res.status(400).send('Malformed request');
+  if (doc.exists) {
+    const { secondsPlayed } = doc.data();
+    existingSecondsPlayed = secondsPlayed || 0;
   }
-
-  const data = doc.data();
-  existingSecondsPlayed = data.secondsPlayed || 0;
 
   // Calculate the updated seconds played
   const updatedSecondsPlayed = existingSecondsPlayed + 5;
@@ -215,7 +215,6 @@ async function storeSongPlaybackRecord(songId, account) {
   // Store the updated song play record in the database
   await docRef.set({
     songId,
-    account,
     secondsPlayed: updatedSecondsPlayed,
     timestamp: Date.now(),
   });
