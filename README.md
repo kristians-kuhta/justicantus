@@ -40,21 +40,32 @@ At this point, the smart contracts and the local hardhat node are ready to be us
 
 The project uses Google Cloud functions (for proxy for IPFS API and in the future for tracking song plays), so you need to create a new cloud function on [cloud.google.com](https://cloud.google.com).
 
-Make sure you have [gcloud](https://cloud.google.com/sdk/docs/install) installed, change the directory to `cloud_functions`, and deploy the cloud function with this command
+Right now an actual GCF will be used even in the development environment, but we have plans to figure out and document how you can run a local instance of the GCFs.
+This would allow faster and easier manual testing as well as allow you to work on the project offline.
+
+Make sure you have [gcloud](https://cloud.google.com/sdk/docs/install) installed, change the directory to `cloud_functions`, and deploy both of the cloud functions with these commands
 
 ```
 gcloud functions deploy pinFile --runtime nodejs14 --trigger-http --set-env-vars 'INFURA_API_KEY=yourapikey,INFURA_API_SECRET=yoursecret,ALLOWED_ORIGINS=*'
+gcloud functions deploy trackPlayback --runtime nodejs14 --trigger-http --set-env-vars 'FIRESTORE_PROJECT_ID=yourprojectid,ALLOWED_ORIGINS=*'
 ```
 
-Replace `yourapikey` and `yoursecret` with your key/secret of an INFURA IPFS API. 
+Replace `yourapikey` and `yoursecret` with your key/secret of an INFURA IPFS API and `yourprojectid` with the ID of the cloud project.
 Other IPFS API providers might work as well, but you should test it yourself.
+
+You can get the project ID by running
+
+```
+gcloud config get project
+```
+
 
 ## Local Graph node
 
 In order for the frontend to be able to render the list of artists you also have to start up a local graph node.
 
 Navigate to the `justicantus-subgraph` and install npm packages.
-The subgraph uses yarn as the package manager, so run 
+The subgraph uses yarn as the package manager, so run
 
 ```shell
 yarn
@@ -112,7 +123,7 @@ After confirming the transaction in Metamask and once it will be accepted on you
 As you might have guessed from the message, you need to choose what kind of (unique!!!) ID you want the artist or song to have and run the `vrf_fulfill` task.
 
 `IMPORTANT`:
-  Make sure that the selected ID is unique in the artist's or song's scope. 
+  Make sure that the selected ID is unique in the artist's or song's scope.
   If you set the same ID for two songs or artists this will overwrite data in the smart contract.
 
 ## Running tests
@@ -120,7 +131,7 @@ The project has these types of tests:
 * smart contract unit tests
 * subgraph tests
 
-To run the smart contract tests, navigate to project root, make sure you have ran `npm install` and run 
+To run the smart contract tests, navigate to project root, make sure you have ran `npm install` and run
 ```
 npx hardhat test
 ````

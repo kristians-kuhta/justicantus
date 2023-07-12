@@ -9,9 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google-cloud/firestore": "6.6.1",
     "@google-cloud/functions-framework": "^3.2.0",
     "axios": "^1.4.0",
     "busboy": "^1.6.0",
+    "ethers": "5.7.0",
     "form-data": "^4.0.0"
   }
 }
