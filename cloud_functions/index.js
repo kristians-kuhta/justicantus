@@ -163,6 +163,14 @@ functions.http('trackPlayback', (req, res) => {
       return;
     }
 
+    const isActiveSubscriber = await isAccountActiveSubscriber(account);
+
+    // TODO: implement this check to ensure that only active subscribers
+    //       can submit play data
+    // if (!isActiveSubscriber) {
+    //   res.status(403).send("Not allowed to track playback");
+    // }
+
     // Store the song play record in the database
     await storeSongPlaybackRecord(songId, account);
 
@@ -194,10 +202,12 @@ async function storeSongPlaybackRecord(songId, account) {
 
   let existingSecondsPlayed = 0;
 
-  if (doc.exists) {
-    const data = doc.data();
-    existingSecondsPlayed = data.secondsPlayed || 0;
+  if (!doc.exists) {
+    return res.status(400).send('Malformed request');
   }
+
+  const data = doc.data();
+  existingSecondsPlayed = data.secondsPlayed || 0;
 
   // Calculate the updated seconds played
   const updatedSecondsPlayed = existingSecondsPlayed + 5;
