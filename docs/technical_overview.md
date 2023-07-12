@@ -31,7 +31,7 @@ average_days_in_month = 30
 subscription_price = 6.5 MATIC (value might change)
 ```
 
-Any MATIC that is unspent (unplayed minutes in a month) remains on the platform and is considered
+Any native currency (Eth, Matic) that is unspent (unplayed minutes in a month) remains on the platform and is considered
 platform fee.
 
 Artists can claim rewards at any time.
