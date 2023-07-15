@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start-track-playback": "FIRESTORE_PROJECT_ID=justicantus-development npx functions-framework --target=trackPlayback --signature-type=http",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
