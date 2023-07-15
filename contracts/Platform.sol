@@ -53,6 +53,9 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
   event SubscriptionPlanAdded(uint256 indexed price, uint256 indexed timestampIncrease);
 
+  event ReporterAdded(address indexed account);
+  event ReporterRemoved(address indexed account);
+
   error ArtistNameRequired();
   error ArtistAlreadyRegistered();
   error SongUriRequired();
@@ -60,6 +63,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   error SubscriptionAlreadyCreated();
   error SubscriptionNotCreated();
   error ValueMustMatchOneOfThePlans();
+  error AccountIsReporter();
+  error AccountNotReporter();
 
   // TODO: review which ones of these mappings need to be public
   mapping(uint256 id => string name) public artistNames;
@@ -74,6 +79,7 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   // Requests are used for generating IDs (both for an artists and a song)
   mapping(uint256 requestId => Registration registration) private registrations;
 
+  mapping(address account => bool isReporter) private reporters;
 
   VRFCoordinatorV2Interface immutable vrfCoordinator;
   uint64 private immutable subscriptionId;
@@ -133,6 +139,18 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   function _requireValueMatchesOneOfThePlans(uint256 subscriptionInterval) internal pure {
     if (subscriptionInterval == 0) {
       revert ValueMustMatchOneOfThePlans();
+    }
+  }
+
+  function _requireAccountIsReporter(address account) internal view {
+    if (!reporters[account]) {
+      revert AccountNotReporter();
+    }
+  }
+
+  function _requireAccountNotReporter(address account) internal view {
+    if (reporters[account]) {
+      revert AccountIsReporter();
     }
   }
 
@@ -262,6 +280,22 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     subscriptionPlanIntervals[price] = timestampIncrease;
 
     emit SubscriptionPlanAdded(price, timestampIncrease);
+  }
+
+  function addReporter(address account) external onlyOwner {
+    _requireAccountNotReporter(account);
+
+    reporters[account] = true;
+
+    emit ReporterAdded(account);
+  }
+
+  function removeReporter(address account) external onlyOwner {
+    _requireAccountIsReporter(account);
+
+    reporters[account] = false;
+
+    emit ReporterRemoved(account);
   }
 
   function getArtistId(address account) external view returns (uint256) {
