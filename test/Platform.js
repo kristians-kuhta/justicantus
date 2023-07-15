@@ -583,4 +583,32 @@ describe("Platform", function () {
       );
     });
   });
+
+  describe('Managing reporters'. function() {
+    it('does not allow adding reporters by non-owner', async function() {
+    });
+
+    it('adds a reporter when called by owner', async function() {
+    });
+
+    it('does not allow removing reporters by non-owner', async function() {
+    });
+
+    it('removes a reporter when called by owner', async function() {
+    });
+  });
+
+  describe('Updating played minutes', function() {
+    it('does not allow updating played minutes by non-reporter', async function() {
+    });
+
+    it('does not allow updating played minutes when no artist addresses are provided', async function() {
+    });
+
+    it('does not allow updating played minutes when one of the addresses is not an artist', async function() {
+    });
+
+    it('does not allow to update artist played minutes to less than they where before', async function() {
+    });
+  });
 });
