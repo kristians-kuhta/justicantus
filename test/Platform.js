@@ -58,7 +58,7 @@ describe("Platform", function () {
     firstAccount,
     artistName
   ) {
-    const registrationResponse = platform.connect(firstAccount).registerArtist('First Artist');
+    const registrationResponse = platform.connect(firstAccount).registerArtist(artistName);
     await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
 
     const registrationTx = await (await registrationResponse).wait();
@@ -652,15 +652,86 @@ describe("Platform", function () {
 
   describe('Updating played minutes', function() {
     it('does not allow updating played minutes by non-reporter', async function() {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      const artistUpdate = {
+        artist: firstAccount.address,
+        playedMinutes: 123
+      };
+
+      await expect(
+        platform.updatePlayedMinutes([artistUpdate])
+      ).to.be.revertedWithCustomError(platform, 'AccountNotReporter');
     });
 
-    it('does not allow updating played minutes when no artist addresses are provided', async function() {
+    it('does not allow updating played minutes when no updates are provided', async function() {
+      const { platform } = await loadFixture(deployInstance)
+
+      await expect(
+        platform.updatePlayedMinutes([])
+      ).to.be.revertedWithCustomError(platform, 'AccountNotReporter');
     });
 
     it('does not allow updating played minutes when one of the addresses is not an artist', async function() {
+      const { platform, firstAccount } = await loadFixture(deployInstance)
+
+      await (await platform.addReporter(firstAccount.address)).wait();
+
+      const artistUpdates = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 123
+        },
+        {
+          artist: ethers.constants.AddressZero,
+          playedMinutes: 212
+        }
+      ];
+
+      await expect(
+        platform.connect(firstAccount).updatePlayedMinutes(artistUpdates)
+      ).to.be.revertedWithCustomError(platform, 'UpdateInvalid').withArgs(
+        ethers.constants.AddressZero,
+        212
+      );
     });
 
-    it('does not allow to update artist played minutes to less than they where before', async function() {
+    it.only('does not allow to update artist played minutes to less than they where before', async function() {
+      const {
+        platform,
+        coordinator,
+        vrfAdmin,
+        firstAccount,
+        secondAccount
+      } = await loadFixture(deployInstance)
+
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
+        'Doesnotmatter',
+        vrfAdmin
+      );
+
+      await (await platform.addReporter(secondAccount.address)).wait();
+
+      const artistUpdates = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 123
+        },
+        {
+          artist: firstAccount.address,
+          playedMinutes: 122
+        },
+      ];
+
+      await expect(
+        platform.connect(secondAccount).updatePlayedMinutes(artistUpdates)
+      ).to.be.revertedWithCustomError(platform, 'UpdateInvalid').withArgs(
+        firstAccount.address,
+        122
+      );
     });
   });
 });

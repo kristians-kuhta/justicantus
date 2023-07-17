@@ -5,6 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
+import "hardhat/console.sol";
+
 contract Platform is Ownable, VRFConsumerBaseV2 {
   enum ResourceType {
     Unknown,
@@ -23,6 +25,11 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     uint256 generatedId;
     // Data is either artist name or song uri
     string data;
+  }
+
+  struct ArtistUpdate {
+    address artist;
+    uint256 playedMinutes;
   }
 
   event RegistrationCreated(
@@ -56,6 +63,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   event ReporterAdded(address indexed account);
   event ReporterRemoved(address indexed account);
 
+  event PlayedMinutesUpdated();
+
   error ArtistNameRequired();
   error ArtistAlreadyRegistered();
   error SongUriRequired();
@@ -65,6 +74,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   error ValueMustMatchOneOfThePlans();
   error AccountIsReporter();
   error AccountNotReporter();
+  error NoUpdatesGiven();
+  error UpdateInvalid(address artist, uint256 playedMinutes);
 
   // TODO: review which ones of these mappings need to be public
   mapping(uint256 id => string name) public artistNames;
@@ -80,6 +91,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   mapping(uint256 requestId => Registration registration) private registrations;
 
   mapping(address account => bool isReporter) private reporters;
+  mapping(address artist => uint256 playedMinutes) private artistPlayedMinutes;
+  mapping(address artist => uint256 claimedMinutes) private artistClaimedMinutes;
 
   VRFCoordinatorV2Interface immutable vrfCoordinator;
   uint64 private immutable subscriptionId;
@@ -296,6 +309,45 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     reporters[account] = false;
 
     emit ReporterRemoved(account);
+  }
+
+  // TODO: move this function
+  function _requireValidUpdates(ArtistUpdate[] calldata updates) internal view {
+    if (updates.length == 0) {
+      revert NoUpdatesGiven();
+    }
+
+    for(uint256 i; i < updates.length; i++) {
+      ArtistUpdate memory update = updates[i];
+
+      if (artistIds[update.artist] == 0) {
+        console.log('Not an artist');
+        revert UpdateInvalid(update.artist, update.playedMinutes);
+      }
+
+      uint256 previousPlayedMinutes = artistPlayedMinutes[update.artist];
+      console.log("Previous:");
+      console.log(previousPlayedMinutes);
+      console.log("Updated:");
+      console.log(update.playedMinutes);
+
+      if (previousPlayedMinutes >= update.playedMinutes) {
+        console.log('Played minute decrement');
+        revert UpdateInvalid(update.artist, update.playedMinutes);
+      }
+    }
+  }
+
+  function updatePlayedMinutes(ArtistUpdate[] calldata updates) external {
+    _requireAccountIsReporter(msg.sender);
+    _requireValidUpdates(updates);
+
+    for(uint256 i; i < updates.length; i++) {
+      ArtistUpdate memory update = updates[i];
+      artistPlayedMinutes[update.artist] = update.playedMinutes;
+    }
+
+    emit PlayedMinutesUpdated();
   }
 
   function getArtistId(address account) external view returns (uint256) {
