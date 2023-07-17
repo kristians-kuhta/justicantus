@@ -25,6 +25,11 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     string data;
   }
 
+  struct ArtistUpdate {
+    address artist;
+    uint256 playedMinutes;
+  }
+
   event RegistrationCreated(
     address indexed account,
     ResourceType indexed resourceType,
@@ -53,6 +58,11 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
 
   event SubscriptionPlanAdded(uint256 indexed price, uint256 indexed timestampIncrease);
 
+  event ReporterAdded(address indexed account);
+  event ReporterRemoved(address indexed account);
+
+  event PlayedMinutesUpdated();
+
   error ArtistNameRequired();
   error ArtistAlreadyRegistered();
   error SongUriRequired();
@@ -60,6 +70,10 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   error SubscriptionAlreadyCreated();
   error SubscriptionNotCreated();
   error ValueMustMatchOneOfThePlans();
+  error AccountIsReporter();
+  error AccountNotReporter();
+  error NoUpdatesGiven();
+  error UpdateInvalid(address artist, uint256 playedMinutes);
 
   // TODO: review which ones of these mappings need to be public
   mapping(uint256 id => string name) public artistNames;
@@ -74,6 +88,9 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   // Requests are used for generating IDs (both for an artists and a song)
   mapping(uint256 requestId => Registration registration) private registrations;
 
+  mapping(address account => bool isReporter) private reporters;
+  mapping(address artist => uint256 playedMinutes) public artistPlayedMinutes;
+  mapping(address artist => uint256 claimedMinutes) public artistClaimedMinutes;
 
   VRFCoordinatorV2Interface immutable vrfCoordinator;
   uint64 private immutable subscriptionId;
@@ -133,6 +150,38 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   function _requireValueMatchesOneOfThePlans(uint256 subscriptionInterval) internal pure {
     if (subscriptionInterval == 0) {
       revert ValueMustMatchOneOfThePlans();
+    }
+  }
+
+  function _requireAccountIsReporter(address account) internal view {
+    if (!reporters[account]) {
+      revert AccountNotReporter();
+    }
+  }
+
+  function _requireAccountNotReporter(address account) internal view {
+    if (reporters[account]) {
+      revert AccountIsReporter();
+    }
+  }
+
+  function _requireValidUpdates(ArtistUpdate[] calldata updates) internal view {
+    if (updates.length == 0) {
+      revert NoUpdatesGiven();
+    }
+
+    for(uint256 i; i < updates.length; i++) {
+      ArtistUpdate memory update = updates[i];
+
+      if (artistIds[update.artist] == 0) {
+        revert UpdateInvalid(update.artist, update.playedMinutes);
+      }
+
+      uint256 previousPlayedMinutes = artistPlayedMinutes[update.artist];
+
+      if (previousPlayedMinutes >= update.playedMinutes) {
+        revert UpdateInvalid(update.artist, update.playedMinutes);
+      }
     }
   }
 
@@ -262,6 +311,34 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     subscriptionPlanIntervals[price] = timestampIncrease;
 
     emit SubscriptionPlanAdded(price, timestampIncrease);
+  }
+
+  function addReporter(address account) external onlyOwner {
+    _requireAccountNotReporter(account);
+
+    reporters[account] = true;
+
+    emit ReporterAdded(account);
+  }
+
+  function removeReporter(address account) external onlyOwner {
+    _requireAccountIsReporter(account);
+
+    reporters[account] = false;
+
+    emit ReporterRemoved(account);
+  }
+
+  function updatePlayedMinutes(ArtistUpdate[] calldata updates) external {
+    _requireAccountIsReporter(msg.sender);
+    _requireValidUpdates(updates);
+
+    for(uint256 i; i < updates.length; i++) {
+      ArtistUpdate memory update = updates[i];
+      artistPlayedMinutes[update.artist] = update.playedMinutes;
+    }
+
+    emit PlayedMinutesUpdated();
   }
 
   function getArtistId(address account) external view returns (uint256) {

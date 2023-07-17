@@ -36,12 +36,19 @@ Then run the `bin/dev` script which will deploy the smart contracts and add 3 su
 
 At this point, the smart contracts and the local hardhat node are ready to be used by the frontend.
 
-## Set up Google Cloud functions
+## Run Google Cloud functions locally
 
-The project uses Google Cloud functions (for proxy for IPFS API and in the future for tracking song plays), so you need to create a new cloud function on [cloud.google.com](https://cloud.google.com).
+The project uses Google Cloud functions (to proxy IPFS API and to register played song seconds).
 
-Right now an actual GCF will be used even in the development environment, but we have plans to figure out and document how you can run a local instance of the GCFs.
-This would allow faster and easier manual testing as well as allow you to work on the project offline.
+Navigate to `cloud_functions` and do the following steps:
+1. Make sure you have [gcloud](https://cloud.google.com/sdk/docs/install) installed
+2. Run `npm install`
+3. Start up Firestore emulator `npm run emulate-firestore`
+4. Start up `trackPlayback` function: `npm run emulate-trackPlayback`
+5. Start up `pinFile` function: `INFURA_API_KEY=yourkey INFURA_API_SECRET=yoursecret npm run emulate-pinFile` (replace the key/secret with your values)
+6. Make sure that steps #3, #4, and #5 did not output any errors
+
+If you would rather deploy actual LIVE functions instead of using the local ones, follow the steps below.
 
 Make sure you have [gcloud](https://cloud.google.com/sdk/docs/install) installed, change the directory to `cloud_functions`, and deploy both of the cloud functions with these commands
 
