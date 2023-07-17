@@ -1,6 +1,7 @@
 const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
 const { anyUint } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
+const { BigNumber } = ethers;
 
 describe("Platform", function () {
   async function deployInstance() {
@@ -226,7 +227,7 @@ describe("Platform", function () {
         coordinator,
         firstAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance)
+      } = await loadFixture(deployInstance);
 
       await fully_register_artist(
         platform,
@@ -246,7 +247,7 @@ describe("Platform", function () {
         coordinator,
         firstAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance)
+      } = await loadFixture(deployInstance);
 
       await fully_register_artist(
         platform,
@@ -265,7 +266,7 @@ describe("Platform", function () {
         coordinator,
         firstAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance)
+      } = await loadFixture(deployInstance);
 
       await fully_register_artist(
         platform,
@@ -291,7 +292,7 @@ describe("Platform", function () {
         coordinator,
         firstAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance)
+      } = await loadFixture(deployInstance);
 
       await fully_register_artist(
         platform,
@@ -317,7 +318,7 @@ describe("Platform", function () {
         coordinator,
         firstAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance)
+      } = await loadFixture(deployInstance);
 
       await fully_register_artist(
         platform,
@@ -673,37 +674,13 @@ describe("Platform", function () {
     });
 
     it('does not allow updating played minutes when one of the addresses is not an artist', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
-
-      await (await platform.addReporter(firstAccount.address)).wait();
-
-      const artistUpdates = [
-        {
-          artist: firstAccount.address,
-          playedMinutes: 123
-        },
-        {
-          artist: ethers.constants.AddressZero,
-          playedMinutes: 212
-        }
-      ];
-
-      await expect(
-        platform.connect(firstAccount).updatePlayedMinutes(artistUpdates)
-      ).to.be.revertedWithCustomError(platform, 'UpdateInvalid').withArgs(
-        ethers.constants.AddressZero,
-        212
-      );
-    });
-
-    it.only('does not allow to update artist played minutes to less than they where before', async function() {
       const {
         platform,
         coordinator,
         vrfAdmin,
         firstAccount,
         secondAccount
-      } = await loadFixture(deployInstance)
+      } = await loadFixture(deployInstance);
 
       await fully_register_artist(
         platform,
@@ -721,17 +698,143 @@ describe("Platform", function () {
           playedMinutes: 123
         },
         {
-          artist: firstAccount.address,
-          playedMinutes: 122
-        },
+          artist: ethers.constants.AddressZero,
+          playedMinutes: 212
+        }
       ];
 
       await expect(
         platform.connect(secondAccount).updatePlayedMinutes(artistUpdates)
       ).to.be.revertedWithCustomError(platform, 'UpdateInvalid').withArgs(
+        ethers.constants.AddressZero,
+        212
+      );
+    });
+
+    it('does not allow to update artist played minutes to less than they where before', async function() {
+      const {
+        platform,
+        coordinator,
+        vrfAdmin,
+        firstAccount,
+        secondAccount
+      } = await loadFixture(deployInstance);
+
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
+        'Doesnotmatter',
+        vrfAdmin
+      );
+
+      await (await platform.addReporter(secondAccount.address)).wait();
+
+      const artistUpdates1 = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 123
+        },
+      ];
+
+      const artistUpdates2 = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 122
+        },
+      ];
+
+      await (await platform.connect(secondAccount).updatePlayedMinutes(artistUpdates1)).wait();
+
+      await expect(
+        platform.connect(secondAccount).updatePlayedMinutes(artistUpdates2)
+      ).to.be.revertedWithCustomError(platform, 'UpdateInvalid').withArgs(
         firstAccount.address,
         122
       );
+    });
+
+    it('stores the initial played minutes', async function() {
+      const {
+        platform,
+        coordinator,
+        vrfAdmin,
+        firstAccount,
+        secondAccount
+      } = await loadFixture(deployInstance);
+
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
+        'Doesnotmatter',
+        vrfAdmin
+      );
+
+      await (await platform.addReporter(secondAccount.address)).wait();
+
+      expect(await platform.artistPlayedMinutes(firstAccount.address)).to.eq(BigNumber.from(0));
+
+      const artistUpdates = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 123
+        }
+      ];
+
+      await expect(
+        platform.connect(secondAccount).updatePlayedMinutes(artistUpdates)
+      ).to.emit(platform, 'PlayedMinutesUpdated');
+
+      expect(await platform.artistPlayedMinutes(firstAccount.address)).to.eq(BigNumber.from(123));
+    });
+
+    it('stores the second update of played minutes', async function() {
+      const {
+        platform,
+        coordinator,
+        vrfAdmin,
+        firstAccount,
+        secondAccount
+      } = await loadFixture(deployInstance);
+
+      await fully_register_artist(
+        platform,
+        coordinator,
+        firstAccount,
+        'Doesnotmatter',
+        vrfAdmin
+      );
+
+      await (await platform.addReporter(secondAccount.address)).wait();
+
+      expect(await platform.artistPlayedMinutes(firstAccount.address)).to.eq(BigNumber.from(0));
+
+      const artistUpdates1 = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 123
+        }
+      ];
+
+      await expect(
+        platform.connect(secondAccount).updatePlayedMinutes(artistUpdates1)
+      ).to.emit(platform, 'PlayedMinutesUpdated');
+
+      expect(await platform.artistPlayedMinutes(firstAccount.address)).to.eq(BigNumber.from(123));
+
+      const artistUpdates2 = [
+        {
+          artist: firstAccount.address,
+          playedMinutes: 124
+        }
+      ];
+
+      await expect(
+        platform.connect(secondAccount).updatePlayedMinutes(artistUpdates2)
+      ).to.emit(platform, 'PlayedMinutesUpdated');
+
+      expect(await platform.artistPlayedMinutes(firstAccount.address)).to.eq(BigNumber.from(124));
     });
   });
 });

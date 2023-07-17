@@ -5,8 +5,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
-import "hardhat/console.sol";
-
 contract Platform is Ownable, VRFConsumerBaseV2 {
   enum ResourceType {
     Unknown,
@@ -91,8 +89,8 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   mapping(uint256 requestId => Registration registration) private registrations;
 
   mapping(address account => bool isReporter) private reporters;
-  mapping(address artist => uint256 playedMinutes) private artistPlayedMinutes;
-  mapping(address artist => uint256 claimedMinutes) private artistClaimedMinutes;
+  mapping(address artist => uint256 playedMinutes) public artistPlayedMinutes;
+  mapping(address artist => uint256 claimedMinutes) public artistClaimedMinutes;
 
   VRFCoordinatorV2Interface immutable vrfCoordinator;
   uint64 private immutable subscriptionId;
@@ -164,6 +162,26 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
   function _requireAccountNotReporter(address account) internal view {
     if (reporters[account]) {
       revert AccountIsReporter();
+    }
+  }
+
+  function _requireValidUpdates(ArtistUpdate[] calldata updates) internal view {
+    if (updates.length == 0) {
+      revert NoUpdatesGiven();
+    }
+
+    for(uint256 i; i < updates.length; i++) {
+      ArtistUpdate memory update = updates[i];
+
+      if (artistIds[update.artist] == 0) {
+        revert UpdateInvalid(update.artist, update.playedMinutes);
+      }
+
+      uint256 previousPlayedMinutes = artistPlayedMinutes[update.artist];
+
+      if (previousPlayedMinutes >= update.playedMinutes) {
+        revert UpdateInvalid(update.artist, update.playedMinutes);
+      }
     }
   }
 
@@ -309,33 +327,6 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     reporters[account] = false;
 
     emit ReporterRemoved(account);
-  }
-
-  // TODO: move this function
-  function _requireValidUpdates(ArtistUpdate[] calldata updates) internal view {
-    if (updates.length == 0) {
-      revert NoUpdatesGiven();
-    }
-
-    for(uint256 i; i < updates.length; i++) {
-      ArtistUpdate memory update = updates[i];
-
-      if (artistIds[update.artist] == 0) {
-        console.log('Not an artist');
-        revert UpdateInvalid(update.artist, update.playedMinutes);
-      }
-
-      uint256 previousPlayedMinutes = artistPlayedMinutes[update.artist];
-      console.log("Previous:");
-      console.log(previousPlayedMinutes);
-      console.log("Updated:");
-      console.log(update.playedMinutes);
-
-      if (previousPlayedMinutes >= update.playedMinutes) {
-        console.log('Played minute decrement');
-        revert UpdateInvalid(update.artist, update.playedMinutes);
-      }
-    }
   }
 
   function updatePlayedMinutes(ArtistUpdate[] calldata updates) external {
