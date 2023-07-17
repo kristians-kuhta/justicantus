@@ -194,7 +194,7 @@ describe("Platform", function () {
 
   describe("Deployment", function () {
     it("sets the owner", async function () {
-      const { platform, owner } = await loadFixture(deployInstance)
+      const { platform, owner } = await loadFixture(deployInstance);
 
       expect(await platform.owner()).to.equal(owner.address);
     });
@@ -202,7 +202,7 @@ describe("Platform", function () {
 
   describe('Artist registration', function () {
     it('reverts when registering an artist without name', async function () {
-      const { platform } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance);
 
       await expect(
         platform.registerArtist('')
@@ -210,7 +210,7 @@ describe("Platform", function () {
     });
 
     it('initializes artist registration', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance)
+      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
 
       // Chainlink VRF request id
       await initializeArtistRegistration(
@@ -334,7 +334,7 @@ describe("Platform", function () {
     });
 
     it('reverts when registering song from an account that is not registered as an artist', async function () {
-      const { platform } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance);
 
       await expect(
         platform.registerSong('something')
@@ -344,7 +344,7 @@ describe("Platform", function () {
 
   describe('Subscription plans', function () {
     it('reverts when setting plan by non-owner', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -355,7 +355,7 @@ describe("Platform", function () {
     });
 
     it('reverts when trying to set plan and zero price provided', async function () {
-      const { platform } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -366,7 +366,7 @@ describe("Platform", function () {
     });
 
     it('reverts when trying to set plan and zero timestamp increase provided', async function () {
-      const { platform } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
 
@@ -376,7 +376,7 @@ describe("Platform", function () {
     });
 
     it('sets the subscription plan price and timestamp increase', async function () {
-      const { platform } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -393,8 +393,7 @@ describe("Platform", function () {
 
   describe('Subscription creation', function () {
     it('reverts when subscription already created', async function () {
-      //TODO: get rid of unused firstAccount everywhere
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -410,7 +409,7 @@ describe("Platform", function () {
     it(
       'reverts when trying to create a subscription and sending value that does not match a plan',
       async function () {
-        const { platform, firstAccount } = await loadFixture(deployInstance)
+        const { platform, firstAccount } = await loadFixture(deployInstance);
 
         const price = ethers.utils.parseEther('0.005');
 
@@ -421,7 +420,7 @@ describe("Platform", function () {
     );
 
     it('reverts when trying to create a subscription without sending value', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       await expect(
         platform.connect(firstAccount).createSubscription()
@@ -429,7 +428,7 @@ describe("Platform", function () {
     });
 
     it('creates a subscription', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -455,7 +454,7 @@ describe("Platform", function () {
 
     it('returns false when checking if expired subscriber is active', async function () {
 
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -493,8 +492,7 @@ describe("Platform", function () {
 
   describe('Subscription funding', function () {
     it('reverts when trying to fund before creating subscription', async function () {
-      //TODO: get rid of unused firstAccount everywhere
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -509,7 +507,7 @@ describe("Platform", function () {
     it(
       'reverts when trying to fund a subscription and sending value that does not match a plan',
       async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -537,7 +535,7 @@ describe("Platform", function () {
     );
 
     it('reverts when trying to fund a subscription without sending value', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -562,7 +560,7 @@ describe("Platform", function () {
     });
 
     it('funds a subscription', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -594,7 +592,7 @@ describe("Platform", function () {
 
   describe('Managing reporters', function() {
     it('does not allow adding reporters by non-owner', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
 
       await expect(
         platform.connect(firstAccount).addReporter(secondAccount.address)
@@ -602,7 +600,7 @@ describe("Platform", function () {
     });
 
     it('does not allow adding reporter if already added', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
 
       await (await platform.addReporter(secondAccount.address)).wait();
 
@@ -612,7 +610,7 @@ describe("Platform", function () {
     });
 
     it('adds a reporter when called by owner', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       await expect(
         platform.addReporter(firstAccount.address)
@@ -620,7 +618,7 @@ describe("Platform", function () {
     });
 
     it('does not allow removing reporters by non-owner', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
 
       await (await platform.addReporter(secondAccount.address)).wait();
 
@@ -630,7 +628,7 @@ describe("Platform", function () {
     });
 
     it('does not allow removing reporters that are already removed', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
 
       await (await platform.addReporter(secondAccount.address)).wait();
       await (await platform.removeReporter(secondAccount.address)).wait();
@@ -641,7 +639,7 @@ describe("Platform", function () {
     });
 
     it('removes a reporter when called by owner', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       await (await platform.addReporter(firstAccount.address)).wait();
 
@@ -653,7 +651,7 @@ describe("Platform", function () {
 
   describe('Updating played minutes', function() {
     it('does not allow updating played minutes by non-reporter', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance)
+      const { platform, firstAccount } = await loadFixture(deployInstance);
 
       const artistUpdate = {
         artist: firstAccount.address,
@@ -666,7 +664,7 @@ describe("Platform", function () {
     });
 
     it('does not allow updating played minutes when no updates are provided', async function() {
-      const { platform } = await loadFixture(deployInstance)
+      const { platform } = await loadFixture(deployInstance);
 
       await expect(
         platform.updatePlayedMinutes([])
