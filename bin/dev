@@ -10,3 +10,6 @@ npx hardhat add_subscription_plan 30000000000000000 7776000 --network localhost
 
 # TODO: consider starting an oracle simulator for dev. environment
 # TODO: start up the subgraph docker instance
+
+read -p "Copy 5th address from Hardhat node and enter it here. \nThis address will be used for a reporter account.\n" reporterAddress
+npx hardhat add_reporter $reporterAddress

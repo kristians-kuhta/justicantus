@@ -357,6 +357,16 @@ contract Platform is Ownable, VRFConsumerBaseV2 {
     return songIds[artist][songIndex];
   }
 
+  function isArtistSong(address artist, uint256 songId) external view returns (bool) {
+    uint256 artistSongsCount = songsCount[artist];
+    for(uint256 i; i < artistSongsCount; i++) {
+      if (songIds[artist][i] == songId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function getArtistSongsCount(address artist) external view returns (uint256) {
     return songsCount[artist];
   }

@@ -188,6 +188,7 @@ describe("Platform", function () {
 
     const songId = await platform.getArtistSongId(account.address, 0);
     expect((await platform.getArtistSongsCount(account.address)).toString()).to.eq('1');
+    expect(await platform.isArtistSong(account.address, songId)).to.eq(true);
     expect(songId.toString()).not.to.eq('0');
     expect(await platform.getSongUri(songId)).to.eq(uri);
   }

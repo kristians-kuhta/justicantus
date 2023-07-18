@@ -50,6 +50,20 @@ task(
   }
 );
 
+task(
+  'add_reporter',
+  'Add a reporter account'
+).addPositionalParam('reporter').setAction(
+  async ({ reporter }, _hre, _runSuper) => {
+    const contractAddresses = require('./build/contract-addresses.json');
+
+    const Platform = await ethers.getContractFactory("Platform");
+    const platform = await Platform.attach(contractAddresses.Platform);
+
+    await (await platform.addReporter(reporter, { gasLimit: 300000 })).wait();
+    console.log(`Added a reporter: ${reporter}`);
+  }
+);
 module.exports = {
   solidity: "0.8.19"
 };

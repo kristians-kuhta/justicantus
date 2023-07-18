@@ -131,6 +131,73 @@ functions.http('pinFile', (req, res) => {
   busboy.end(req.rawBody);
 });
 
+functions.http('updatePlayedMinutes', async (req, res) => {
+  if (req.method !== 'POST') {
+    // Return a "method not allowed" error
+    return res.status(405).end();
+  }
+
+  const {
+    INFURA_URL,
+    REPORTER_PRIVATE_KEY,
+    FIRESTORE_PROJECT_ID
+  } = process.env;
+
+  const firestore = new Firestore({
+    projectId: FIRESTORE_PROJECT_ID,
+    timestampsInSnapshots: true
+  });
+
+  const collectionSnapshot = firestore.collection("songPlayRecords").get();
+  const { docs } = collectionSnapshot;
+
+  if (docs.length === 0) {
+    return res.status(200).send('No updates where made');
+  }
+
+  let artistPlayedSeconds = {};
+
+  const provider = new ethers.providers.JsonRpcProvider(INFURA_URL);
+  const reporterWallet = new ethers.Wallet(REPORTER_PRIVATE_KEY, provider);
+
+  const platform = new ethers.Contract(
+    contractAddresses.Platform,
+    PlatformArtifact.abi,
+    reporterWallet
+  );
+
+  docs.forEach((doc) => {
+    const { songId, artistAddress, secondsPlayed } = doc.data();
+
+    const isArtistSong = await platform.isArtistSong(artistAddress, songId);
+
+    if (!isArtistSong) {
+      console.error(`Unable to process played minutes for artist ${artistAddress} and song ${songId}`);
+      // NOTE: We skip this doc. If we were to choose to abort the whole update this would lock
+      //       any further updates and we might not have a way of enabling them unless we add a DB editing feature.
+      return;
+    }
+
+    const prevPlayedSeconds = artistPlayedSeconds[artistId] || 0;
+    artistPlayedSeconds[artistId] = prevPlayedSeconds + secondsPlayed;
+  });
+
+  // TODO: remove this, once testing is done
+  console.log({artistPlayedSeconds});
+
+  const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistId) => {
+    const playedSeconds = artistPlayedSeconds[artistId];
+    const playedMinutes = Math.floor(playedSeconds / 60);
+    return { artist: artistId, playedMinutes };
+  });
+
+  try {
+    await (await platform.updatePlayedMinutes(artistPlayedMinutes)).wait();
+  } catch (e) {
+    return res.status(422).send('Could not update played minutes');
+  }
+});
+
 functions.http('trackPlayback', async (req, res) => {
   if (req.method !== 'POST') {
     // Return a "method not allowed" error

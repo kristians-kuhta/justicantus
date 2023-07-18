@@ -7,6 +7,7 @@
     "emulate-firestore": "gcloud emulators firestore start --host-port=localhost:8085",
     "emulate-pinFile": "npx functions-framework --target=pinFile --source=index.js --port=8081 --env-vars=\"INFURA_API_KEY=$INFURA_API_KEY,INFURA_API_SECRET=$INFURA_API_SECRET,ALLOWED_ORIGINS=*\"",
     "emulate-trackPlayback": "FIRESTORE_EMULATOR_HOST=localhost:8085 npx functions-framework --target=trackPlayback --source=index.js --port=8080 --env-vars=\"FIRESTORE_PROJECT_ID=justicantus-development,ALLOWED_ORIGINS=*\"",
+    "emulate-updatePlayedMinutes": "FIRESTORE_EMULATOR_HOST=localhost:8085 npx functions-framework --target=updatePlayedMinutes --source=index.js --port=8082 --env-vars=\"FIRESTORE_PROJECT_ID=justicantus-development,INFURA_URL=$INFURA_URL,REPORTER_PRIVATE_KEY=$REPORTER_PRIVATE_KEY\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
