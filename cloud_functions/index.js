@@ -12,6 +12,7 @@ const functions = require('@google-cloud/functions-framework');
 // Node.js doesn't have a built-in multipart/form-data parsing library.
 // Instead, we can use the 'busboy' library from NPM to parse these requests.
 const Busboy = require('busboy');
+const TRACKING_INTERVAL_SECONDS = 10;
 
 // TODO: decide on what kind of additional data needs to be logged, if any
 functions.http('pinFile', (req, res) => {
@@ -148,17 +149,19 @@ functions.http('trackPlayback', async (req, res) => {
     return;
   }
 
-  const { songId, account, signature, duration } = req.body;
+  const {
+    songId,
+    artistAddress,
+    account,
+    signature,
+    duration
+  } = req.body;
 
-  if (!songId || !account || !signature || !duration) {
+  if (!songId || !account || !signature || !duration || !artistAddress) {
     return res.status(400).send('Malformed request');
   }
 
   try {
-    // TODO: Extract all input validation to a separate function.
-    //       We should validate: song & subscriber existence, and signature validity.
-    //
-    // Validate Ethereum signature
     const isValidSignature = await validateSignature(account, signature);
 
     if (!isValidSignature) {
@@ -166,14 +169,24 @@ functions.http('trackPlayback', async (req, res) => {
       return;
     }
 
-    // const isActiveSubscriber = await isAccountActiveSubscriber(account);
-    //       can submit play data
-    // if (!isActiveSubscriber) {
-    //   res.status(403).send("Not allowed to track playback");
-    // }
+    const { INFURA_URL } = process.env;
 
-    // Store the song play record in the database
-    await storeSongPlaybackRecord(res, songId, account);
+    const provider = new ethers.providers.JsonRpcProvider(INFURA_URL);
+    const platform = new ethers.Contract(contractAddresses.Platform, PlatformArtifact.abi);
+
+    const isActiveSubscriber = await platform.isActiveSubscriber(account);
+
+    if (!isActiveSubscriber) {
+      return res.status(403).send("Not allowed to track playback");
+    }
+
+    const isArtistSong = await platform.isArtistSong(artistAddress, songId);
+
+    if (!isArtistSong) {
+      return res.status(422).send('Malformed request');
+    }
+
+    await storeSongPlaybackRecord(res, songId, artistAddress);
 
     res.status(200).send("Song play record stored successfully");
   } catch (error) {
@@ -190,7 +203,7 @@ async function validateSignature(account, signature) {
   return signer.toLowerCase() === account.toLowerCase();
 }
 
-async function storeSongPlaybackRecord(res, songId, account) {
+async function storeSongPlaybackRecord(res, songId, artistAddress) {
   const firestore = new Firestore({
     projectId: process.env.FIRESTORE_PROJECT_ID,
     timestampsInSnapshots: true
@@ -210,11 +223,12 @@ async function storeSongPlaybackRecord(res, songId, account) {
   }
 
   // Calculate the updated seconds played
-  const updatedSecondsPlayed = existingSecondsPlayed + 5;
+  const updatedSecondsPlayed = existingSecondsPlayed + TRACKING_INTERVAL_SECONDS;
 
   // Store the updated song play record in the database
   await docRef.set({
     songId,
+    artistAddress,
     secondsPlayed: updatedSecondsPlayed,
     timestamp: Date.now(),
   });
