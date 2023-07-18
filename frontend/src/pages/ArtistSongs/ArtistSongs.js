@@ -6,7 +6,10 @@ import ListGroup from 'react-bootstrap/ListGroup';
 
 import { PlayFill, PauseFill } from 'react-bootstrap-icons';
 
-const { REACT_APP_IPFS_API_URL } = process.env;
+const {
+  REACT_APP_IPFS_API_URL,
+  REACT_APP_TRACKING_FUNCTION_URL
+} = process.env;
 const TRACKING_INTERVAL_MILLISECONDS = 10000; // 10 seconds
 
 const PlayControls = ({songId, playing, subscriber, handleSongPlay}) => {
@@ -50,8 +53,22 @@ const ArtistSongs = () => {
     const signature = localStorage.getItem('subscriberSignature');
     const progressSeconds = song.audio.currentTime;
 
+    const trackingPayload = {
+      songId: song.id,
+      artistAddress,
+      account: subscriber,
+      duration: progressSeconds,
+      signature
+    };
+
     console.log(`Going to update played minutes`);
-    console.log({songId: song.id, artistAddress, progressSeconds, subscriber, signature });
+    console.log(trackingPayload);
+
+    try {
+      axios.post(REACT_APP_TRACKING_FUNCTION_URL, trackingPayload);
+    } catch (e) {
+      console.error(e);
+    }
   }, [subscriber]);
 
   // For both play and pause/stop events

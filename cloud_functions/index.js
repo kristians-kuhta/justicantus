@@ -19,24 +19,23 @@ const TRACKING_INTERVAL_SECONDS = 10;
 
 // TODO: decide on what kind of additional data needs to be logged, if any
 functions.http('pinFile', (req, res) => {
-  if (req.method !== 'POST') {
-    // Return a "method not allowed" error
-    return res.status(405).end();
-  }
-
   // Set CORS headers for preflight requests
   // Allows GETs from any origin with the Content-Type header
   // and caches preflight response for 3600s
 
+  console.log({ allowedOrigins: process.env.ALLOWED_ORIGINS });
   res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS);
 
   if (req.method === 'OPTIONS') {
     // Send response to OPTIONS requests
-    res.set('Access-Control-Allow-Methods', 'GET');
+    res.set('Access-Control-Allow-Methods', 'POST');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     res.set('Access-Control-Max-Age', '3600');
     res.status(204).send('');
     return;
+  } else if (req.method !== 'POST') {
+    // Return a "method not allowed" error
+    return res.status(405).end();
   }
 
   const busboy = Busboy({headers: req.headers});
@@ -148,7 +147,7 @@ functions.http('updatePlayedMinutes', async (req, res) => {
     timestampsInSnapshots: true
   });
 
-  const collectionSnapshot = firestore.collection("songPlayRecords").get();
+  const collectionSnapshot = await firestore.collection("songPlayRecords").get();
   const { docs } = collectionSnapshot;
 
   if (docs.length === 0) {
@@ -166,7 +165,7 @@ functions.http('updatePlayedMinutes', async (req, res) => {
     reporterWallet
   );
 
-  docs.forEach((doc) => {
+  await Promise.all(docs.map(async(doc) => {
     const { songId, artistAddress, secondsPlayed } = doc.data();
 
     const isArtistSong = await platform.isArtistSong(artistAddress, songId);
@@ -178,45 +177,45 @@ functions.http('updatePlayedMinutes', async (req, res) => {
       return;
     }
 
-    const prevPlayedSeconds = artistPlayedSeconds[artistId] || 0;
-    artistPlayedSeconds[artistId] = prevPlayedSeconds + secondsPlayed;
-  });
+    const prevPlayedSeconds = artistPlayedSeconds[artistAddress] || 0;
+    artistPlayedSeconds[artistAddress] = prevPlayedSeconds + secondsPlayed;
+  }));
 
   // TODO: remove this, once testing is done
   console.log({artistPlayedSeconds});
 
-  const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistId) => {
-    const playedSeconds = artistPlayedSeconds[artistId];
+  const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistAddress) => {
+    const playedSeconds = artistPlayedSeconds[artistAddress];
     const playedMinutes = Math.floor(playedSeconds / 60);
-    return { artist: artistId, playedMinutes };
+    return { artist: artistAddress, playedMinutes };
   });
 
   try {
-    await (await platform.updatePlayedMinutes(artistPlayedMinutes)).wait();
+    // TODO: figure out actual amount of gas used here
+    await (await platform.updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
+    res.status(200).send('Done');
   } catch (e) {
+    console.error(e);
     return res.status(422).send('Could not update played minutes');
   }
 });
 
 functions.http('trackPlayback', async (req, res) => {
-  if (req.method !== 'POST') {
-    // Return a "method not allowed" error
-    return res.status(405).end();
-  }
-
-  // Set CORS headers for preflight requests
-  // Allows GETs from any origin with the Content-Type header
-  // and caches preflight response for 3600s
-
   res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS);
 
+  // Send response to OPTIONS requests
   if (req.method === 'OPTIONS') {
-    // Send response to OPTIONS requests
-    res.set('Access-Control-Allow-Methods', 'GET');
+    // Set CORS headers for preflight requests
+    // Allows POSTs from any origin with the Content-Type header
+    // and caches preflight response for 3600s
+    res.set('Access-Control-Allow-Methods', 'POST');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     res.set('Access-Control-Max-Age', '3600');
     res.status(204).send('');
     return;
+  } else if (req.method !== 'POST') {
+    // Return a "method not allowed" error
+    return res.status(405).end();
   }
 
   const {
@@ -242,7 +241,9 @@ functions.http('trackPlayback', async (req, res) => {
     const { INFURA_URL } = process.env;
 
     const provider = new ethers.providers.JsonRpcProvider(INFURA_URL);
-    const platform = new ethers.Contract(contractAddresses.Platform, PlatformArtifact.abi);
+    // TODO: figure out how we can get rid of signers here, as only read-only operations will be done (this is 10th account from hardhat, consider it random)
+    const wallet = new ethers.Wallet('0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897', provider);
+    const platform = new ethers.Contract(contractAddresses.Platform, PlatformArtifact.abi, wallet);
 
     const isActiveSubscriber = await platform.isActiveSubscriber(account);
 
@@ -270,6 +271,7 @@ async function validateSignature(account, signature) {
   const message = 'I want to subscribe';
   const signer = ethers.utils.verifyMessage(message, signature);
 
+  console.log({signer});
   return signer.toLowerCase() === account.toLowerCase();
 }
 

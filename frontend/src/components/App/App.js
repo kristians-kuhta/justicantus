@@ -81,11 +81,15 @@ export const appLoader = async () => {
   return { account, networkSwitchNeccessary };
 }
 
-async function ensureSubsciberSignatureIsSigned(provider) {
+async function ensureSubsciberSignatureIsSigned(provider, platform) {
   let signature = localStorage.getItem('subscriberSignature');
 
   if (!signature) {
-    const signer = provider.getSigner();
+    const signer = await provider.getSigner();
+    const isSubscriber = (await platform.subscriptions(await signer.getAddress())).toString() !== '0';
+    // NOTE: if signer is not subscriber, something went wrong with selected account in the wallet
+    if (!isSubscriber) return;
+
     signature = await signer.signMessage(SUBSCRIBER_SIGNATURE_MESSAGE);
     localStorage.setItem('subscriberSignature', signature);
   }
@@ -119,11 +123,11 @@ function App() {
 
   useEffect(() => {
     if (subscriber) {
-      ensureSubsciberSignatureIsSigned(provider).then((generatedSignature) => {
+      ensureSubsciberSignatureIsSigned(provider, platform).then((generatedSignature) => {
         setSubscriberSignature(generatedSignature);
       });
     }
-  }, [subscriber, setSubscriberSignature, provider]);
+  }, [subscriber, setSubscriberSignature, provider, platform]);
 
   if (networkSwitchNeccessary) {
     return <NetworkSwitchModal chainName={getExpectedChain().name}/>;
