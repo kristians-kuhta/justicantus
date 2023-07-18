@@ -9,8 +9,8 @@ const ethers = require("ethers");
 
 const functions = require('@google-cloud/functions-framework');
 
-import contractAddresses from "contracts/contract-addresses.json";
-import PlatformArtifact from "contracts/Platform.json";
+const contractAddresses = require("./contracts/contract-addresses.json");
+const PlatformArtifact = require("./contracts/Platform.json");
 
 // Node.js doesn't have a built-in multipart/form-data parsing library.
 // Instead, we can use the 'busboy' library from NPM to parse these requests.

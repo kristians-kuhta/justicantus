@@ -4,9 +4,9 @@ const path = require('path');
 
 function saveFrontendFiles(platform) {
   const contractsDirs = [
-    "/../frontend/src/contracts",
+    "../frontend/src/contracts",
     "../cloud_functions/contracts",
-    "../build/"
+    "../build"
   ];
 
   // `artifacts` is a helper property provided by Hardhat to read artifacts
@@ -15,21 +15,21 @@ function saveFrontendFiles(platform) {
   contractsDirs.forEach((contractsDir) => {
     const contractsPath = path.join(__dirname, contractsDir);
 
-    if (!fs.existsSync(contractsDir)) {
-      fs.mkdirSync(contractsDir);
+    if (!fs.existsSync(contractsPath)) {
+      fs.mkdirSync(contractsPath);
     }
 
     fs.writeFileSync(
-      contractsDir + "/contract-addresses.json",
+      contractsPath + "/contract-addresses.json",
       JSON.stringify({ Platform: platform.address }, null, 2)
     );
 
     fs.writeFileSync(
-      contractsDir + "/Platform.json",
+      contractsPath + "/Platform.json",
       JSON.stringify(PlatformArtifact, null, 2)
     );
 
-    console.log(`Artifacts written to ${contractsDir} directory`);
+    console.log(`Artifacts written to ${contractsPath} directory`);
   });
 }
 
