@@ -61,8 +61,9 @@ const RegisterArtist = () => {
           // and fulfill VRF request manually via the hardhat task.
           // In mainnet or testnet the requests will be fulfilled by Chainlink.
           if (process.env.NODE_ENV !== 'production') {
-            console.log(`[Artist] npx hardhat vrf_fulfill ${requestId.toHexString()} 123 --network localhost`);
-            console.log('(replace the 123 with the number you want to be assigned)');
+            const timestamp = Date.now();
+            console.log(`[Artist] npx hardhat vrf_fulfill ${requestId.toHexString()} ${timestamp} --network localhost`);
+            console.log(`(replace the ${timestamp} with the number you want to be assigned)`);
           }
           setProgress(75);
         }
