@@ -23,7 +23,6 @@ functions.http('pinFile', (req, res) => {
   // Allows GETs from any origin with the Content-Type header
   // and caches preflight response for 3600s
 
-  console.log({ allowedOrigins: process.env.ALLOWED_ORIGINS });
   res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS);
 
   if (req.method === 'OPTIONS') {
@@ -181,9 +180,6 @@ functions.http('updatePlayedMinutes', async (req, res) => {
     artistPlayedSeconds[artistAddress] = prevPlayedSeconds + secondsPlayed;
   }));
 
-  // TODO: remove this, once testing is done
-  console.log({artistPlayedSeconds});
-
   const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistAddress) => {
     const playedSeconds = artistPlayedSeconds[artistAddress];
     const playedMinutes = Math.floor(playedSeconds / 60);
@@ -271,7 +267,6 @@ async function validateSignature(account, signature) {
   const message = 'I want to subscribe';
   const signer = ethers.utils.verifyMessage(message, signature);
 
-  console.log({signer});
   return signer.toLowerCase() === account.toLowerCase();
 }
 
