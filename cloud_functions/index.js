@@ -9,17 +9,16 @@ const ethers = require("ethers");
 
 const functions = require('@google-cloud/functions-framework');
 
+const contractAddresses = require("./contracts/contract-addresses.json");
+const PlatformArtifact = require("./contracts/Platform.json");
+
 // Node.js doesn't have a built-in multipart/form-data parsing library.
 // Instead, we can use the 'busboy' library from NPM to parse these requests.
 const Busboy = require('busboy');
+const TRACKING_INTERVAL_SECONDS = 10;
 
 // TODO: decide on what kind of additional data needs to be logged, if any
 functions.http('pinFile', (req, res) => {
-  if (req.method !== 'POST') {
-    // Return a "method not allowed" error
-    return res.status(405).end();
-  }
-
   // Set CORS headers for preflight requests
   // Allows GETs from any origin with the Content-Type header
   // and caches preflight response for 3600s
@@ -28,11 +27,14 @@ functions.http('pinFile', (req, res) => {
 
   if (req.method === 'OPTIONS') {
     // Send response to OPTIONS requests
-    res.set('Access-Control-Allow-Methods', 'GET');
+    res.set('Access-Control-Allow-Methods', 'POST');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     res.set('Access-Control-Max-Age', '3600');
     res.status(204).send('');
     return;
+  } else if (req.method !== 'POST') {
+    // Return a "method not allowed" error
+    return res.status(405).end();
   }
 
   const busboy = Busboy({headers: req.headers});
@@ -127,38 +129,104 @@ functions.http('pinFile', (req, res) => {
   busboy.end(req.rawBody);
 });
 
-functions.http('trackPlayback', async (req, res) => {
+functions.http('updatePlayedMinutes', async (req, res) => {
   if (req.method !== 'POST') {
     // Return a "method not allowed" error
     return res.status(405).end();
   }
 
-  // Set CORS headers for preflight requests
-  // Allows GETs from any origin with the Content-Type header
-  // and caches preflight response for 3600s
+  const {
+    INFURA_URL,
+    REPORTER_PRIVATE_KEY,
+    FIRESTORE_PROJECT_ID
+  } = process.env;
 
+  const firestore = new Firestore({
+    projectId: FIRESTORE_PROJECT_ID,
+    timestampsInSnapshots: true
+  });
+
+  const collectionSnapshot = await firestore.collection("songPlayRecords").get();
+  const { docs } = collectionSnapshot;
+
+  if (docs.length === 0) {
+    return res.status(200).send('No updates where made');
+  }
+
+  let artistPlayedSeconds = {};
+
+  const provider = new ethers.providers.JsonRpcProvider(INFURA_URL);
+  const reporterWallet = new ethers.Wallet(REPORTER_PRIVATE_KEY, provider);
+
+  const platform = new ethers.Contract(
+    contractAddresses.Platform,
+    PlatformArtifact.abi,
+    reporterWallet
+  );
+
+  await Promise.all(docs.map(async(doc) => {
+    const { songId, artistAddress, secondsPlayed } = doc.data();
+
+    const isArtistSong = await platform.isArtistSong(artistAddress, songId);
+
+    if (!isArtistSong) {
+      console.error(`Unable to process played minutes for artist ${artistAddress} and song ${songId}`);
+      // NOTE: We skip this doc. If we were to choose to abort the whole update this would lock
+      //       any further updates and we might not have a way of enabling them unless we add a DB editing feature.
+      return;
+    }
+
+    const prevPlayedSeconds = artistPlayedSeconds[artistAddress] || 0;
+    artistPlayedSeconds[artistAddress] = prevPlayedSeconds + secondsPlayed;
+  }));
+
+  const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistAddress) => {
+    const playedSeconds = artistPlayedSeconds[artistAddress];
+    const playedMinutes = Math.floor(playedSeconds / 60);
+    return { artist: artistAddress, playedMinutes };
+  });
+
+  try {
+    // TODO: figure out actual amount of gas used here
+    await (await platform.updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
+    res.status(200).send('Done');
+  } catch (e) {
+    console.error(e);
+    return res.status(422).send('Could not update played minutes');
+  }
+});
+
+functions.http('trackPlayback', async (req, res) => {
   res.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS);
 
+  // Send response to OPTIONS requests
   if (req.method === 'OPTIONS') {
-    // Send response to OPTIONS requests
-    res.set('Access-Control-Allow-Methods', 'GET');
+    // Set CORS headers for preflight requests
+    // Allows POSTs from any origin with the Content-Type header
+    // and caches preflight response for 3600s
+    res.set('Access-Control-Allow-Methods', 'POST');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
     res.set('Access-Control-Max-Age', '3600');
     res.status(204).send('');
     return;
+  } else if (req.method !== 'POST') {
+    // Return a "method not allowed" error
+    return res.status(405).end();
   }
 
-  const { songId, account, signature, duration } = req.body;
+  const {
+    songId,
+    artistAddress,
+    account,
+    signature,
+    duration
+  } = req.body;
 
-  if (!songId || !account || !signature || !duration) {
+  if (!songId || !account || !signature || !duration || !artistAddress) {
     return res.status(400).send('Malformed request');
   }
 
   try {
-    // TODO: Extract all input validation to a separate function.
-    //       We should validate: song & subscriber existence, and signature validity.
-    //
-    // Validate Ethereum signature
     const isValidSignature = await validateSignature(account, signature);
 
     if (!isValidSignature) {
@@ -166,14 +234,26 @@ functions.http('trackPlayback', async (req, res) => {
       return;
     }
 
-    // const isActiveSubscriber = await isAccountActiveSubscriber(account);
-    //       can submit play data
-    // if (!isActiveSubscriber) {
-    //   res.status(403).send("Not allowed to track playback");
-    // }
+    const { INFURA_URL } = process.env;
 
-    // Store the song play record in the database
-    await storeSongPlaybackRecord(res, songId, account);
+    const provider = new ethers.providers.JsonRpcProvider(INFURA_URL);
+    // TODO: figure out how we can get rid of signers here, as only read-only operations will be done (this is 10th account from hardhat, consider it random)
+    const wallet = new ethers.Wallet('0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897', provider);
+    const platform = new ethers.Contract(contractAddresses.Platform, PlatformArtifact.abi, wallet);
+
+    const isActiveSubscriber = await platform.isActiveSubscriber(account);
+
+    if (!isActiveSubscriber) {
+      return res.status(403).send("Not allowed to track playback");
+    }
+
+    const isArtistSong = await platform.isArtistSong(artistAddress, songId);
+
+    if (!isArtistSong) {
+      return res.status(422).send('Malformed request');
+    }
+
+    await storeSongPlaybackRecord(res, songId, artistAddress);
 
     res.status(200).send("Song play record stored successfully");
   } catch (error) {
@@ -190,7 +270,7 @@ async function validateSignature(account, signature) {
   return signer.toLowerCase() === account.toLowerCase();
 }
 
-async function storeSongPlaybackRecord(res, songId, account) {
+async function storeSongPlaybackRecord(res, songId, artistAddress) {
   const firestore = new Firestore({
     projectId: process.env.FIRESTORE_PROJECT_ID,
     timestampsInSnapshots: true
@@ -210,11 +290,12 @@ async function storeSongPlaybackRecord(res, songId, account) {
   }
 
   // Calculate the updated seconds played
-  const updatedSecondsPlayed = existingSecondsPlayed + 5;
+  const updatedSecondsPlayed = existingSecondsPlayed + TRACKING_INTERVAL_SECONDS;
 
   // Store the updated song play record in the database
   await docRef.set({
     songId,
+    artistAddress,
     secondsPlayed: updatedSecondsPlayed,
     timestamp: Date.now(),
   });

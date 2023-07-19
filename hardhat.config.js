@@ -8,8 +8,7 @@ task(
   addPositionalParam('requestId').
   addPositionalParam('value').
   setAction(async ({ requestId, value }, hre, runSuper) => {
-    // TODO: when deploying -> store the addresses both in hardhat project and frontend
-    const contractAddresses = require('./frontend/src/contracts/contract-addresses.json');
+    const contractAddresses = require('./build/contract-addresses.json');
 
     // TODO: possibly reuse most of this tasks logic in tests
     const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
@@ -41,8 +40,7 @@ task(
   'Add a subscription plan'
 ).addPositionalParam('price').addPositionalParam('duration').setAction(
   async ({ price, duration }, hre, runSuper) => {
-    // TODO: when deploying -> store the addresses both in hardhat project and frontend
-    const contractAddresses = require('./frontend/src/contracts/contract-addresses.json');
+    const contractAddresses = require('./build/contract-addresses.json');
 
     const Platform = await ethers.getContractFactory("Platform");
     const platform = await Platform.attach(contractAddresses.Platform);
@@ -52,6 +50,20 @@ task(
   }
 );
 
+task(
+  'add_reporter',
+  'Add a reporter account'
+).addPositionalParam('reporter').setAction(
+  async ({ reporter }, _hre, _runSuper) => {
+    const contractAddresses = require('./build/contract-addresses.json');
+
+    const Platform = await ethers.getContractFactory("Platform");
+    const platform = await Platform.attach(contractAddresses.Platform);
+
+    await (await platform.addReporter(reporter, { gasLimit: 300000 })).wait();
+    console.log(`Added a reporter: ${reporter}`);
+  }
+);
 module.exports = {
   solidity: "0.8.19"
 };

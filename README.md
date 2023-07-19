@@ -45,8 +45,9 @@ Navigate to `cloud_functions` and do the following steps:
 2. Run `npm install`
 3. Start up Firestore emulator `npm run emulate-firestore`
 4. Start up `trackPlayback` function: `npm run emulate-trackPlayback`
-5. Start up `pinFile` function: `INFURA_API_KEY=yourkey INFURA_API_SECRET=yoursecret npm run emulate-pinFile` (replace the key/secret with your values)
-6. Make sure that steps #3, #4, and #5 did not output any errors
+5. Start up `updatePlayedMinutes` function: `npm run emulate-updatePlayedMinutes`
+6. Start up `pinFile` function: `INFURA_API_KEY=yourkey INFURA_API_SECRET=yoursecret npm run emulate-pinFile` (replace the key/secret with your values)
+7. Make sure that steps #3, #4, and #5 did not output any errors
 
 If you would rather deploy actual LIVE functions instead of using the local ones, follow the steps below.
 
