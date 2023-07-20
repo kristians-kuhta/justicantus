@@ -293,9 +293,6 @@ async function storePlayedSeconds(firestore, songId, artistAddress, addedPlayedS
 
   const timestamp = Date.now();
 
-  console.log('storing songPlayRecords');
-  console.log({songId, artistAddress, secondsPlayed, timestamp});
-
   // Store the updated song play record in the database
   await docRef.set({ songId, artistAddress, secondsPlayed, timestamp });
 }
@@ -303,8 +300,6 @@ async function storePlayedSeconds(firestore, songId, artistAddress, addedPlayedS
 async function storeSubscriberLastTrackedSong(firestore, account, songId, duration) {
   const docRef = firestore.collection("lastTrackedSong").doc(account);
 
-  console.log('storing lastTrackedSong');
-  console.log({account, songId, duration});
   await docRef.set({ account, songId, duration });
 }
 
@@ -315,7 +310,6 @@ async function storeSongPlaybackRecord(res, account, songId, artistAddress, dura
   });
 
   const subscriberLastTrackedSong = await getSubscriberLastTrackedSong(firestore, account, songId);
-  console.log({subscriberLastTrackedSong});
 
   await storeSubscriberLastTrackedSong(firestore, account, songId, duration);
 
@@ -324,8 +318,6 @@ async function storeSongPlaybackRecord(res, account, songId, artistAddress, dura
   if (subscriberLastTrackedSong && subscriberLastTrackedSong.duration < duration) {
     const addedPlayedSeconds = parseInt(duration - subscriberLastTrackedSong.duration);
 
-    console.log('lastTrackedSong did exist');
-    console.log({duration, prevDuration: subscriberLastTrackedSong.duration});
     await storePlayedSeconds(firestore, songId, artistAddress, addedPlayedSeconds);
   }
 }
