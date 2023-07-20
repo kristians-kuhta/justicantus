@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App, { appLoader } from './components/App/App';
 import RegisterArtist from './pages/RegisterArtist/RegisterArtist';
 import ArtistSongs from './pages/ArtistSongs/ArtistSongs';
+import ArtistDashboard from './pages/ArtistDashboard/ArtistDashboard';
 import Artists from './pages/Artists/Artists';
 import NewArtistSong from './pages/NewArtistSong/NewArtistSong';
 import UserSubscription from './pages/UserSubscription/UserSubscription';
@@ -52,6 +53,10 @@ const router = createBrowserRouter([
       {
         path: "artists/:artistAddress/songs",
         element: <ArtistSongs />
+      },
+      {
+        path: "artists/:artistAddress/dashboard",
+        element: <ArtistDashboard />
       },
       {
         path: "artists/:artistAddress/songs/new",
