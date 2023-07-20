@@ -183,12 +183,14 @@ functions.http('updatePlayedMinutes', async (req, res) => {
   const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistAddress) => {
     const playedSeconds = artistPlayedSeconds[artistAddress];
     const playedMinutes = Math.floor(playedSeconds / 60);
-    return { artist: artistAddress, playedMinutes };
-  });
+    return playedMinutes === 0 ? null : { artist: artistAddress, playedMinutes };
+  }).filter(e => e !== null);
 
   try {
-    // TODO: figure out actual amount of gas used here
-    await (await platform.updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
+    if (artistPlayedMinutes.length > 0) {
+      // TODO: figure out actual amount of gas used here
+      await (await platform.updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
+    }
     res.status(200).send('Done');
   } catch (e) {
     console.error(e);
@@ -222,7 +224,10 @@ functions.http('trackPlayback', async (req, res) => {
     duration
   } = req.body;
 
-  if (!songId || !account || !signature || !duration || !artistAddress) {
+  const requiredParams = [songId, account, signature, duration, artistAddress];
+  const areRequiredParamsSent = requiredParams.every((item) => item !== undefined && item !== '');
+
+  if (!areRequiredParamsSent) {
     return res.status(400).send('Malformed request');
   }
 
@@ -253,7 +258,7 @@ functions.http('trackPlayback', async (req, res) => {
       return res.status(422).send('Malformed request');
     }
 
-    await storeSongPlaybackRecord(res, songId, artistAddress);
+    await storeSongPlaybackRecord(res, account, songId, artistAddress, duration);
 
     res.status(200).send("Song play record stored successfully");
   } catch (error) {
@@ -270,34 +275,50 @@ async function validateSignature(account, signature) {
   return signer.toLowerCase() === account.toLowerCase();
 }
 
-async function storeSongPlaybackRecord(res, songId, artistAddress) {
+async function getSubscriberLastTrackedSong(firestore, account, songId) {
+  const docRef = firestore.collection("lastTrackedSong").doc(account);
+  const snapshot = await docRef.get();
+
+  return snapshot.exists ? snapshot.data() : null;
+}
+
+async function storePlayedSeconds(firestore, songId, artistAddress, addedPlayedSeconds) {
+  const docRef = firestore.collection("songPlayRecords").doc(songId.toString());
+  const snapshot = await docRef.get();
+
+  const existingSecondsPlayed = snapshot.exists ? snapshot.data().secondsPlayed : 0;
+
+  // Calculate the updated seconds played
+  const secondsPlayed = existingSecondsPlayed + addedPlayedSeconds;
+
+  const timestamp = Date.now();
+
+  // Store the updated song play record in the database
+  await docRef.set({ songId, artistAddress, secondsPlayed, timestamp });
+}
+
+async function storeSubscriberLastTrackedSong(firestore, account, songId, duration) {
+  const docRef = firestore.collection("lastTrackedSong").doc(account);
+
+  await docRef.set({ account, songId, duration });
+}
+
+async function storeSongPlaybackRecord(res, account, songId, artistAddress, duration) {
   const firestore = new Firestore({
     projectId: process.env.FIRESTORE_PROJECT_ID,
     timestampsInSnapshots: true
   });
 
-  const songDocPath = songId.toString();
-  const docRef = firestore.collection("songPlayRecords").doc(songDocPath);
+  const subscriberLastTrackedSong = await getSubscriberLastTrackedSong(firestore, account, songId);
 
-  // Get the existing song played seconds
-  const doc = await docRef.get();
+  await storeSubscriberLastTrackedSong(firestore, account, songId, duration);
 
-  let existingSecondsPlayed = 0;
+  // NOTE: in case that we replay the same song after it has finished, we don't register the first update.
+  //       This might also be the case if we allow users to go back to a certain place in song and play from there.
+  if (subscriberLastTrackedSong && subscriberLastTrackedSong.duration < duration) {
+    const addedPlayedSeconds = parseInt(duration - subscriberLastTrackedSong.duration);
 
-  if (doc.exists) {
-    const { secondsPlayed } = doc.data();
-    existingSecondsPlayed = secondsPlayed || 0;
+    await storePlayedSeconds(firestore, songId, artistAddress, addedPlayedSeconds);
   }
-
-  // Calculate the updated seconds played
-  const updatedSecondsPlayed = existingSecondsPlayed + TRACKING_INTERVAL_SECONDS;
-
-  // Store the updated song play record in the database
-  await docRef.set({
-    songId,
-    artistAddress,
-    secondsPlayed: updatedSecondsPlayed,
-    timestamp: Date.now(),
-  });
 }
 
