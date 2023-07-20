@@ -86,6 +86,9 @@ const ArtistSongs = () => {
       }
     } else {
       if (subscriber) {
+        // NOTE: we send one tracking event straight away and set
+        //       up a tracking interval
+        sendTrackingEvent(song);
         setTrackingInterval(
           setInterval(() => {
             sendTrackingEvent(song);
