@@ -26,6 +26,12 @@ const Navigation = ({ account, loggedInArtist, subscriber }) => {
                 Fund subscription
               </NavLink>
             }
+
+            { loggedInArtist.id > 0 &&
+              <NavLink to={`artists/${account}/dashboard`} className="nav-link">
+                Dashboard
+              </NavLink>
+            }
             { loggedInArtist.id > 0 &&
               <NavLink to={`artists/${account}/songs`} className="nav-link">
                 My songs
