@@ -196,12 +196,6 @@ contract Platform is Ownable, VRFConsumerBaseV2, ReentrancyGuard {
     }
   }
 
-  function _requireArtist() internal view {
-    if (artistIds[msg.sender] == 0) {
-      revert NotARegisteredArtist();
-    }
-  }
-
   function _requireArtistHasUnclaimedRewards() internal view {
     uint256 playedMinutes = artistPlayedMinutes[msg.sender];
     uint256 claimedMinutes = artistClaimedMinutes[msg.sender];
@@ -381,7 +375,7 @@ contract Platform is Ownable, VRFConsumerBaseV2, ReentrancyGuard {
   }
 
   function claimRewards() external nonReentrant {
-    _requireArtist();
+    _requireRegisteredArtist();
     _requireArtistHasUnclaimedRewards();
 
     uint256 playedMinutes = artistPlayedMinutes[msg.sender];
