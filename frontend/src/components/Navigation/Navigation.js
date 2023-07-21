@@ -43,10 +43,18 @@ const Navigation = ({ account, loggedInArtist, subscriber }) => {
             </NavLink>
           </div>
 
-          { loggedInArtist.id > 0 &&
+          { loggedInArtist.id > 0 && !subscriber &&
             <Navbar.Text className="ml-auto">
               <NavLink to={`artists/${account}/songs`}>
                 { `${loggedInArtist.name} (${account.slice(0, 7)}...${account.slice(37, 42)})` }
+              </NavLink>
+            </Navbar.Text>
+          }
+
+          { subscriber && !(loggedInArtist.id > 0) &&
+            <Navbar.Text className="ml-auto">
+              <NavLink to="users/subscription">
+                { `${subscriber.slice(0, 7)}...${subscriber.slice(37, 42)}` }
               </NavLink>
             </Navbar.Text>
           }

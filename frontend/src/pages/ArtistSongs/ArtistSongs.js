@@ -69,7 +69,7 @@ const ArtistSongs = () => {
     } catch (e) {
       console.error(e);
     }
-  }, [subscriber]);
+  }, [subscriber, artistAddress]);
 
   // For both play and pause/stop events
   const handleSongPlay = useCallback((songId, subscriber) => {

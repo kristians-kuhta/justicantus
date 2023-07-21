@@ -49,6 +49,8 @@ export const appLoader = async () => {
     }
   }
 
+  window.ethereum.on("accountsChanged", () => window.location.reload());
+
   provider.on("network", (newNetwork, oldNetwork) => {
     if (oldNetwork) {
       window.location.reload();
