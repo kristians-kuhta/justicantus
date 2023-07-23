@@ -247,14 +247,14 @@ describe("Platform", function () {
     it('returns the default value for rewardss for played minute', async function () {
       const { platform } = await loadFixture(deployPlatform);
 
-      const defaultReward = BigNumber.from('2314814814814');
+      const defaultReward = BigNumber.from('231481481481');
       expect(await platform.rewardForPlayedMinute()).to.eq(defaultReward);
     });
 
     it('sets and returns the reward for played minute', async function () {
       const { platform } = await loadFixture(deployPlatform);
 
-      const defaultReward = BigNumber.from('2314814814814');
+      const defaultReward = BigNumber.from('231481481481');
       const reward = defaultReward.mul(2);
 
       await expect(

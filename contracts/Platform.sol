@@ -7,15 +7,16 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./ResourceRegistration.sol";
 import "./Subscription.sol";
 import "./Reporter.sol";
+import "./PlayedMinutesReward.sol";
 
-contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscription, Reporter {
+contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscription,
+  Reporter, PlayedMinutesReward {
   struct ArtistUpdate {
     address artist;
     uint256 playedMinutes;
   }
 
   event PlayedMinutesUpdated();
-  event RewardForPlayedMinutesChanged(uint256 indexed reward);
   event RewardsClaimed(address indexed artist, uint256 indexed rewards);
 
   error NoUpdatesGiven();
@@ -25,18 +26,9 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscriptio
   mapping(address artist => uint256 playedMinutes) public artistPlayedMinutes;
   mapping(address artist => uint256 claimedMinutes) public artistClaimedMinutes;
 
-  uint256 public rewardForPlayedMinute;
-
-  constructor(
-    address _vrfCoordinator,
-    uint64 _subscriptionId,
-    bytes32 _keyHash
-  ) ResourceRegistration(_vrfCoordinator, _subscriptionId, _keyHash) {
-    // Default value: 0.1 eth / 30 days / 24 hours / 60 minutes
-    rewardForPlayedMinute = 2314814814814;
-
-    emit RewardForPlayedMinutesChanged(rewardForPlayedMinute);
-  }
+  constructor(address _vrfCoordinator, uint64 _subscriptionId, bytes32 _keyHash)
+    ResourceRegistration(_vrfCoordinator, _subscriptionId, _keyHash)
+    PlayedMinutesReward() {}
 
   function _requireValidUpdates(ArtistUpdate[] calldata updates) internal view {
     if (updates.length == 0) {
@@ -78,14 +70,6 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscriptio
     }
 
     emit PlayedMinutesUpdated();
-  }
-
-  function setRewardForPlayedMinute(uint256 reward) external onlyOwner {
-    require(reward > 0);
-
-    rewardForPlayedMinute = reward;
-
-    emit RewardForPlayedMinutesChanged(rewardForPlayedMinute);
   }
 
   function _artistUnclaimedAmount(uint256 playedMinutes, uint256 claimedMinutes) internal view returns(uint256) {
