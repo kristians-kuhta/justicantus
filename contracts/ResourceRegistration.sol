@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
 import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
-abstract contract ResourceRegistration is VRFConsumerBaseV2 {
+contract ResourceRegistration is VRFConsumerBaseV2 {
   enum ResourceType {
     Unknown,
     Artist,
