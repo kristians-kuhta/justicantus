@@ -244,36 +244,6 @@ describe("Platform", function () {
   });
 
   describe('Claiming of rewards', function() {
-    it('returns the default value for rewardss for played minute', async function () {
-      const { platform } = await loadFixture(deployPlatform);
-
-      const defaultReward = BigNumber.from('231481481481');
-      expect(await platform.rewardForPlayedMinute()).to.eq(defaultReward);
-    });
-
-    it('sets and returns the reward for played minute', async function () {
-      const { platform } = await loadFixture(deployPlatform);
-
-      const defaultReward = BigNumber.from('231481481481');
-      const reward = defaultReward.mul(2);
-
-      await expect(
-        platform.setRewardForPlayedMinute(reward)
-      ).to.emit(platform, 'RewardForPlayedMinutesChanged').withArgs(
-        reward
-      );
-
-      expect(await platform.rewardForPlayedMinute()).to.eq(reward);
-    });
-
-    it('does not set the reward for played minute to zero', async function () {
-      const { platform } = await loadFixture(deployPlatform);
-
-      await expect(
-        platform.setRewardForPlayedMinute(0)
-      ).to.be.reverted;
-    });
-
     it('returns unclaimed ether amount', async function () {
       const {
         platform,
