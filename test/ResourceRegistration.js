@@ -1,8 +1,8 @@
 const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { expect } = require("chai");
-const { deployPlatform } = require('./utils');
 
 const {
+  deployPlatform,
   initializeArtistRegistration,
   initializeSongRegistration,
   fully_register_artist,
