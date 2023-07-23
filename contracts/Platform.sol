@@ -5,26 +5,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./ResourceRegistration.sol";
+import "./Subscription.sol";
 
-contract Platform is Ownable, ReentrancyGuard, ResourceRegistration {
+contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscription {
   struct ArtistUpdate {
     address artist;
     uint256 playedMinutes;
   }
-
-  event SubscriptionCreated(
-    address indexed account,
-    uint256 indexed expirationTimestamp,
-    uint256 indexed timestampIncrease
-  );
-
-  event SubscriptionFunded(
-    address indexed account,
-    uint256 indexed expirationTimestamp,
-    uint256 indexed timestampIncrease
-  );
-
-  event SubscriptionPlanAdded(uint256 indexed price, uint256 indexed timestampIncrease);
 
   event ReporterAdded(address indexed account);
   event ReporterRemoved(address indexed account);
@@ -33,18 +20,11 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration {
   event RewardForPlayedMinutesChanged(uint256 indexed reward);
   event RewardsClaimed(address indexed artist, uint256 indexed rewards);
 
-  error SubscriptionAlreadyCreated();
-  error SubscriptionNotCreated();
-  error ValueMustMatchOneOfThePlans();
   error AccountIsReporter();
   error AccountNotReporter();
   error NoUpdatesGiven();
   error NoClaimableRewards();
   error UpdateInvalid(address artist, uint256 playedMinutes);
-
-  // TODO: review which ones of these mappings need to be public
-  mapping(address account => uint256 expirationTimestamp) public subscriptions;
-  mapping(uint256 price => uint256 interval) public subscriptionPlanIntervals;
 
   mapping(address account => bool isReporter) private reporters;
   mapping(address artist => uint256 playedMinutes) public artistPlayedMinutes;
@@ -61,24 +41,6 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration {
     rewardForPlayedMinute = 2314814814814;
 
     emit RewardForPlayedMinutesChanged(rewardForPlayedMinute);
-  }
-
-  function _requireSubscriptionNotCreated() internal view {
-    if (subscriptions[msg.sender] > 0) {
-      revert SubscriptionAlreadyCreated();
-    }
-  }
-
-  function _requireSubscriptionCreated() internal view {
-    if (subscriptions[msg.sender] == 0) {
-      revert SubscriptionNotCreated();
-    }
-  }
-
-  function _requireValueMatchesOneOfThePlans(uint256 subscriptionInterval) internal pure {
-    if (subscriptionInterval == 0) {
-      revert ValueMustMatchOneOfThePlans();
-    }
   }
 
   function _requireAccountIsReporter(address account) internal view {
@@ -121,48 +83,6 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration {
     if (unclaimedMinutes == 0) {
       revert NoClaimableRewards();
     }
-  }
-
-  function createSubscription() external payable {
-    _requireSubscriptionNotCreated();
-
-    uint256 timestampIncrease = subscriptionPlanIntervals[msg.value];
-    _requireValueMatchesOneOfThePlans(timestampIncrease);
-
-    uint256 expirationTimestamp = block.timestamp + timestampIncrease;
-    subscriptions[msg.sender] = expirationTimestamp;
-
-    emit SubscriptionCreated(msg.sender, expirationTimestamp, timestampIncrease);
-  }
-
-  function fundSubscription() external payable {
-    _requireSubscriptionCreated();
-
-    uint256 timestampIncrease = subscriptionPlanIntervals[msg.value];
-    _requireValueMatchesOneOfThePlans(timestampIncrease);
-
-    uint256 expirationTimestamp;
-    uint256 subscriptionTimestamp = subscriptions[msg.sender];
-
-    if (subscriptionTimestamp < block.timestamp) {
-      expirationTimestamp = block.timestamp + timestampIncrease;
-    } else {
-      expirationTimestamp = subscriptionTimestamp + timestampIncrease;
-    }
-
-    subscriptions[msg.sender] = expirationTimestamp;
-
-    emit SubscriptionFunded(msg.sender, expirationTimestamp, timestampIncrease);
-  }
-
-  function setSubscriptionPlan(uint256 price, uint256 timestampIncrease) external onlyOwner {
-    // NOTE: we assume the owner knows what he is doing, hence no error messages are provided
-    require(price > 0);
-    require(timestampIncrease > 0);
-
-    subscriptionPlanIntervals[price] = timestampIncrease;
-
-    emit SubscriptionPlanAdded(price, timestampIncrease);
   }
 
   function addReporter(address account) external onlyOwner {
@@ -220,10 +140,6 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration {
     artistClaimedMinutes[msg.sender] = playedMinutes + claimedMinutes;
 
     emit RewardsClaimed(msg.sender, unclaimedAmount);
-  }
-
-  function isActiveSubscriber(address account) external view returns (bool) {
-    return subscriptions[account] >= block.timestamp;
   }
 
   function artistUnclaimedAmount(address artist) external view returns (uint256) {
