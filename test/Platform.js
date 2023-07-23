@@ -1,199 +1,13 @@
 const { loadFixture, time } = require("@nomicfoundation/hardhat-network-helpers");
-const { anyUint } = require("@nomicfoundation/hardhat-chai-matchers/withArgs");
 const { expect } = require("chai");
 const { BigNumber } = ethers;
+const {
+  deployPlatform,
+  fully_register_artist,
+  fully_register_song,
+} = require('./utils');
 
 describe("Platform", function () {
-  async function deployInstance() {
-    const [owner, firstAccount, secondAccount] = await ethers.getSigners();
-
-    const { KEY_HASH } = process.env;
-    const vrfAdmin = firstAccount;
-
-    const BASE_FEE = '100000000000000000';
-    const GAS_PRICE_LINK = '1000000000';
-    const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
-
-    const Coordinator = await ethers.getContractFactory("VRFCoordinatorV2Mock");
-    coordinator = await Coordinator.deploy(BASE_FEE, GAS_PRICE_LINK);
-    await coordinator.deployed();
-
-    // Create the subscription
-    const createSubResponse = await coordinator.connect(vrfAdmin).createSubscription();
-    const subTx = await createSubResponse.wait();
-    subscriptionId = subTx.events[0].args.subId;
-
-    // Fund the subscription
-    await (await coordinator.connect(vrfAdmin).fundSubscription(subscriptionId, SUBSCRIPTION_BALANCE)).wait();
-    const Platform = await ethers.getContractFactory("Platform");
-    const platform = await Platform.deploy(coordinator.address, subscriptionId, KEY_HASH);
-
-    const oneEther = ethers.utils.parseEther('1');
-
-    // Give coordinator some ETH
-    await network.provider.send(
-      "hardhat_setBalance",
-      [
-        coordinator.address,
-        oneEther.toHexString().replace("0x0", "0x")
-      ]
-    );
-
-    await (
-      await coordinator.connect(vrfAdmin).addConsumer(subscriptionId, platform.address, { gasLimit: 300000})
-    ).wait();
-
-    return {
-      platform,
-      coordinator,
-      owner,
-      firstAccount,
-      secondAccount,
-      vrfAdmin
-    };
-  }
-
-  async function initializeArtistRegistration(
-    platform,
-    coordinator,
-    firstAccount,
-    artistName
-  ) {
-    const registrationResponse = platform.connect(firstAccount).registerArtist(artistName);
-    await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
-
-    const registrationTx = await (await registrationResponse).wait();
-    const event = registrationTx.events[0];
-    const eventSignature = 'RandomWordsRequested(bytes32,uint256,uint256,uint64,uint16,uint32,uint32,address)';
-    const eventAbi = coordinator.interface.events[eventSignature];
-    const decodedData = ethers.utils.defaultAbiCoder.decode(
-      eventAbi.inputs.filter(i => !i.indexed),
-      event.data,
-      event.topics.slice(1)
-    );
-
-    const { requestId } = decodedData;
-
-    // Registration is a two step process.
-    // The oracle must return the random ID and complete the registration.
-    expect(
-      await platform.getArtistName(firstAccount.address)
-    ).not.to.equal('First Artist');
-
-    // Expecting that the ID hasn't been assigned
-    expect(
-      (await platform.getArtistId(firstAccount.address)).toString()
-    ).to.equal('0');
-
-    return requestId;
-  }
-
-  async function initializeSongRegistration(
-    platform,
-    coordinator,
-    firstAccount,
-    uri
-  ) {
-    const SONG_URI = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
-    const registrationResponse = platform.connect(firstAccount).registerSong(SONG_URI);
-    await expect(registrationResponse).to.emit(coordinator, 'RandomWordsRequested');
-
-    const registrationTx = await (await registrationResponse).wait();
-    const event = registrationTx.events[0];
-    const eventSignature = 'RandomWordsRequested(bytes32,uint256,uint256,uint64,uint16,uint32,uint32,address)';
-    const eventAbi = coordinator.interface.events[eventSignature];
-    const decodedData = ethers.utils.defaultAbiCoder.decode(
-      eventAbi.inputs.filter(i => !i.indexed),
-      event.data,
-      event.topics.slice(1)
-    );
-
-    const { requestId } = decodedData;
-
-    // Registration is a two step process.
-    // The oracle must return the random ID and complete the registration.
-    expect(
-      (await platform.getArtistSongsCount(firstAccount.address)).toString()
-    ).to.equal('0');
-
-    return requestId;
-  }
-
-  async function fully_register_artist(
-    platform,
-    coordinator,
-    account,
-    artistName,
-    vrfAdmin
-  ) {
-    // Unknown = 0; Artist = 1; Song = 2
-    const RESOURCE_TYPE_ARTIST = 1;
-
-    // Chainlink VRF request id
-    const requestId = await initializeArtistRegistration(
-      platform,
-      coordinator,
-      account,
-      artistName
-    );
-
-    const randomId = 123;
-
-    const impersonatedCoordinator = await ethers.getImpersonatedSigner(coordinator.address);
-
-    await expect(
-      platform.connect(impersonatedCoordinator).rawFulfillRandomWords(requestId, [randomId])
-    ).to.emit(platform, 'ResourceRegistered').withArgs(
-      account.address,
-      RESOURCE_TYPE_ARTIST,
-      randomId,
-      artistName
-    );
-
-    const artistId = await platform.getArtistId(account.address);
-    expect(artistId.toString()).not.to.be.eq('0');
-    expect(await platform.getArtistName(account.address)).to.eq(artistName);
-  }
-
-  async function fully_register_song(
-    platform,
-    coordinator,
-    account,
-    uri,
-    vrfAdmin,
-    songId = null
-  ) {
-    // Unknown = 0; Artist = 1; Song = 2
-    const RESOURCE_TYPE_SONG = 2;
-
-    // Chainlink VRF request id
-    const requestId = await initializeSongRegistration(
-      platform,
-      coordinator,
-      account,
-      uri
-    );
-
-    const randomId = songId || 321;
-
-    const impersonatedCoordinator = await ethers.getImpersonatedSigner(coordinator.address);
-
-    await expect(
-      platform.connect(impersonatedCoordinator).rawFulfillRandomWords(requestId, [randomId])
-    ).to.emit(platform, 'ResourceRegistered').withArgs(
-      account.address,
-      RESOURCE_TYPE_SONG,
-      randomId,
-      uri
-    );
-
-    const returnedSongId = await platform.getArtistSongId(account.address, 0);
-    expect((await platform.getArtistSongsCount(account.address)).toString()).to.eq('1');
-    expect(await platform.isArtistSong(account.address, returnedSongId)).to.eq(true);
-    expect(returnedSongId.toString()).not.to.eq('0');
-    expect(await platform.getSongUri(returnedSongId)).to.eq(uri);
-  }
-
   async function setUpArtistForClaimingRewards(
     platform,
     coordinator,
@@ -236,157 +50,15 @@ describe("Platform", function () {
 
   describe("Deployment", function () {
     it("sets the owner", async function () {
-      const { platform, owner } = await loadFixture(deployInstance);
+      const { platform, owner } = await loadFixture(deployPlatform);
 
       expect(await platform.owner()).to.equal(owner.address);
     });
   });
 
-  describe('Artist registration', function () {
-    it('reverts when registering an artist without name', async function () {
-      const { platform } = await loadFixture(deployInstance);
-
-      await expect(
-        platform.registerArtist('')
-      ).to.be.revertedWithCustomError(platform, 'ArtistNameRequired');
-    });
-
-    it('initializes artist registration', async function () {
-      const { platform, coordinator, firstAccount } = await loadFixture(deployInstance);
-
-      // Chainlink VRF request id
-      await initializeArtistRegistration(
-        platform,
-        coordinator,
-        firstAccount,
-        'First Artist',
-      );
-    });
-
-    it('reverts when trying to register artist twice from the same account', async function () {
-      const {
-        platform,
-        coordinator,
-        firstAccount,
-        vrfAdmin
-      } = await loadFixture(deployInstance);
-
-      await fully_register_artist(
-        platform,
-        coordinator,
-        firstAccount,
-        'First Artist',
-        vrfAdmin
-      );
-      await expect(
-        platform.connect(firstAccount).registerArtist('Other Artist?')
-      ).to.be.revertedWithCustomError(platform, 'ArtistAlreadyRegistered');
-    });
-
-    it('completes artist registration', async function () {
-      const {
-        platform,
-        coordinator,
-        firstAccount,
-        vrfAdmin
-      } = await loadFixture(deployInstance);
-
-      await fully_register_artist(
-        platform,
-        coordinator,
-        firstAccount,
-        'First Artist',
-        vrfAdmin
-      );
-    });
-  });
-
-  describe('Song registration', function () {
-    it('initializes song registration', async function () {
-      const {
-        platform,
-        coordinator,
-        firstAccount,
-        vrfAdmin
-      } = await loadFixture(deployInstance);
-
-      await fully_register_artist(
-        platform,
-        coordinator,
-        firstAccount,
-        'First Artist',
-        vrfAdmin
-      );
-
-      const ipfsID = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
-
-      await initializeSongRegistration(
-        platform,
-        coordinator,
-        firstAccount,
-        ipfsID
-      );
-    });
-
-    it('completes song registration', async function () {
-      const {
-        platform,
-        coordinator,
-        firstAccount,
-        vrfAdmin
-      } = await loadFixture(deployInstance);
-
-      await fully_register_artist(
-        platform,
-        coordinator,
-        firstAccount,
-        'First Artist',
-        vrfAdmin
-      );
-
-      const ipfsID = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB';
-
-      await fully_register_song(
-        platform,
-        coordinator,
-        firstAccount,
-        ipfsID
-      );
-    });
-
-    it('reverts when registering a song without providing uri', async function () {
-      const {
-        platform,
-        coordinator,
-        firstAccount,
-        vrfAdmin
-      } = await loadFixture(deployInstance);
-
-      await fully_register_artist(
-        platform,
-        coordinator,
-        firstAccount,
-        'First Artist',
-        vrfAdmin
-      );
-
-      await expect(
-        platform.connect(firstAccount).registerSong('')
-      ).to.be.revertedWithCustomError(platform, 'SongUriRequired');
-    });
-
-    it('reverts when registering song from an account that is not registered as an artist', async function () {
-      const { platform } = await loadFixture(deployInstance);
-
-      await expect(
-        platform.registerSong('something')
-      ).to.be.revertedWithCustomError(platform, 'NotARegisteredArtist');
-    });
-  });
-
   describe('Subscription plans', function () {
     it('reverts when setting plan by non-owner', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -397,7 +69,7 @@ describe("Platform", function () {
     });
 
     it('reverts when trying to set plan and zero price provided', async function () {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -408,7 +80,7 @@ describe("Platform", function () {
     });
 
     it('reverts when trying to set plan and zero timestamp increase provided', async function () {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
 
@@ -418,7 +90,7 @@ describe("Platform", function () {
     });
 
     it('sets the subscription plan price and timestamp increase', async function () {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -435,7 +107,7 @@ describe("Platform", function () {
 
   describe('Subscription creation', function () {
     it('reverts when subscription already created', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -451,7 +123,7 @@ describe("Platform", function () {
     it(
       'reverts when trying to create a subscription and sending value that does not match a plan',
       async function () {
-        const { platform, firstAccount } = await loadFixture(deployInstance);
+        const { platform, firstAccount } = await loadFixture(deployPlatform);
 
         const price = ethers.utils.parseEther('0.005');
 
@@ -462,7 +134,7 @@ describe("Platform", function () {
     );
 
     it('reverts when trying to create a subscription without sending value', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       await expect(
         platform.connect(firstAccount).createSubscription()
@@ -470,7 +142,7 @@ describe("Platform", function () {
     });
 
     it('creates a subscription', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -496,7 +168,7 @@ describe("Platform", function () {
 
     it('returns false when checking if expired subscriber is active', async function () {
 
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -534,7 +206,7 @@ describe("Platform", function () {
 
   describe('Subscription funding', function () {
     it('reverts when trying to fund before creating subscription', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -549,7 +221,7 @@ describe("Platform", function () {
     it(
       'reverts when trying to fund a subscription and sending value that does not match a plan',
       async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -577,7 +249,7 @@ describe("Platform", function () {
     );
 
     it('reverts when trying to fund a subscription without sending value', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -602,7 +274,7 @@ describe("Platform", function () {
     });
 
     it('funds a subscription', async function () {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const price = ethers.utils.parseEther('0.005');
       const timestampIncrease = 15*24*60*60; // 15 days
@@ -634,7 +306,7 @@ describe("Platform", function () {
 
   describe('Managing reporters', function() {
     it('does not allow adding reporters by non-owner', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployPlatform);
 
       await expect(
         platform.connect(firstAccount).addReporter(secondAccount.address)
@@ -642,7 +314,7 @@ describe("Platform", function () {
     });
 
     it('does not allow adding reporter if already added', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployPlatform);
 
       await (await platform.addReporter(secondAccount.address)).wait();
 
@@ -652,7 +324,7 @@ describe("Platform", function () {
     });
 
     it('adds a reporter when called by owner', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       await expect(
         platform.addReporter(firstAccount.address)
@@ -660,7 +332,7 @@ describe("Platform", function () {
     });
 
     it('does not allow removing reporters by non-owner', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployPlatform);
 
       await (await platform.addReporter(secondAccount.address)).wait();
 
@@ -670,7 +342,7 @@ describe("Platform", function () {
     });
 
     it('does not allow removing reporters that are already removed', async function() {
-      const { platform, firstAccount, secondAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount, secondAccount } = await loadFixture(deployPlatform);
 
       await (await platform.addReporter(secondAccount.address)).wait();
       await (await platform.removeReporter(secondAccount.address)).wait();
@@ -681,7 +353,7 @@ describe("Platform", function () {
     });
 
     it('removes a reporter when called by owner', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       await (await platform.addReporter(firstAccount.address)).wait();
 
@@ -693,7 +365,7 @@ describe("Platform", function () {
 
   describe('Updating played minutes', function() {
     it('does not allow updating played minutes by non-reporter', async function() {
-      const { platform, firstAccount } = await loadFixture(deployInstance);
+      const { platform, firstAccount } = await loadFixture(deployPlatform);
 
       const artistUpdate = {
         artist: firstAccount.address,
@@ -706,7 +378,7 @@ describe("Platform", function () {
     });
 
     it('does not allow updating played minutes when no updates are provided', async function() {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       await expect(
         platform.updatePlayedMinutes([])
@@ -720,7 +392,7 @@ describe("Platform", function () {
         vrfAdmin,
         firstAccount,
         secondAccount
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await fully_register_artist(
         platform,
@@ -758,7 +430,7 @@ describe("Platform", function () {
         vrfAdmin,
         firstAccount,
         secondAccount
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await fully_register_artist(
         platform,
@@ -801,7 +473,7 @@ describe("Platform", function () {
         vrfAdmin,
         firstAccount,
         secondAccount
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await fully_register_artist(
         platform,
@@ -836,7 +508,7 @@ describe("Platform", function () {
         vrfAdmin,
         firstAccount,
         secondAccount
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await fully_register_artist(
         platform,
@@ -880,14 +552,14 @@ describe("Platform", function () {
 
   describe('Claiming of rewards', function() {
     it('returns the default value for rewardss for played minute', async function () {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       const defaultReward = BigNumber.from('2314814814814');
       expect(await platform.rewardForPlayedMinute()).to.eq(defaultReward);
     });
 
     it('sets and returns the reward for played minute', async function () {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       const defaultReward = BigNumber.from('2314814814814');
       const reward = defaultReward.mul(2);
@@ -902,7 +574,7 @@ describe("Platform", function () {
     });
 
     it('does not set the reward for played minute to zero', async function () {
-      const { platform } = await loadFixture(deployInstance);
+      const { platform } = await loadFixture(deployPlatform);
 
       await expect(
         platform.setRewardForPlayedMinute(0)
@@ -916,7 +588,7 @@ describe("Platform", function () {
         firstAccount,
         secondAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await setUpArtistForClaimingRewards(
         platform,
@@ -936,7 +608,7 @@ describe("Platform", function () {
         firstAccount,
         secondAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await setUpArtistForClaimingRewards(
         platform,
@@ -960,7 +632,7 @@ describe("Platform", function () {
         firstAccount,
         secondAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await fully_register_artist(
         platform,
@@ -984,7 +656,7 @@ describe("Platform", function () {
         firstAccount,
         secondAccount,
         vrfAdmin
-      } = await loadFixture(deployInstance);
+      } = await loadFixture(deployPlatform);
 
       await setUpArtistForClaimingRewards(
         platform,
