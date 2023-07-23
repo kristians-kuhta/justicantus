@@ -6,54 +6,29 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./ResourceRegistration.sol";
 import "./Subscription.sol";
+import "./Reporter.sol";
+import "./PlayedMinutesReward.sol";
 
-contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscription {
+contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscription,
+  Reporter, PlayedMinutesReward {
   struct ArtistUpdate {
     address artist;
     uint256 playedMinutes;
   }
 
-  event ReporterAdded(address indexed account);
-  event ReporterRemoved(address indexed account);
-
   event PlayedMinutesUpdated();
-  event RewardForPlayedMinutesChanged(uint256 indexed reward);
   event RewardsClaimed(address indexed artist, uint256 indexed rewards);
 
-  error AccountIsReporter();
-  error AccountNotReporter();
   error NoUpdatesGiven();
   error NoClaimableRewards();
   error UpdateInvalid(address artist, uint256 playedMinutes);
 
-  mapping(address account => bool isReporter) private reporters;
   mapping(address artist => uint256 playedMinutes) public artistPlayedMinutes;
   mapping(address artist => uint256 claimedMinutes) public artistClaimedMinutes;
 
-  uint256 public rewardForPlayedMinute;
-
-  constructor(
-    address _vrfCoordinator,
-    uint64 _subscriptionId,
-    bytes32 _keyHash
-  ) ResourceRegistration(_vrfCoordinator, _subscriptionId, _keyHash) {
-    // Default value: 0.1 eth / 30 days / 24 hours / 60 minutes
-    rewardForPlayedMinute = 2314814814814;
-
-    emit RewardForPlayedMinutesChanged(rewardForPlayedMinute);
-  }
-
-  function _requireAccountIsReporter(address account) internal view {
-    if (!reporters[account]) {
-      revert AccountNotReporter();
-    }
-  }
-
-  function _requireAccountNotReporter(address account) internal view {
-    if (reporters[account]) {
-      revert AccountIsReporter();
-    }
-  }
+  constructor(address _vrfCoordinator, uint64 _subscriptionId, bytes32 _keyHash)
+    ResourceRegistration(_vrfCoordinator, _subscriptionId, _keyHash)
+    PlayedMinutesReward() {}
 
   function _requireValidUpdates(ArtistUpdate[] calldata updates) internal view {
     if (updates.length == 0) {
@@ -85,22 +60,6 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscriptio
     }
   }
 
-  function addReporter(address account) external onlyOwner {
-    _requireAccountNotReporter(account);
-
-    reporters[account] = true;
-
-    emit ReporterAdded(account);
-  }
-
-  function removeReporter(address account) external onlyOwner {
-    _requireAccountIsReporter(account);
-
-    reporters[account] = false;
-
-    emit ReporterRemoved(account);
-  }
-
   function updatePlayedMinutes(ArtistUpdate[] calldata updates) external {
     _requireAccountIsReporter(msg.sender);
     _requireValidUpdates(updates);
@@ -111,14 +70,6 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscriptio
     }
 
     emit PlayedMinutesUpdated();
-  }
-
-  function setRewardForPlayedMinute(uint256 reward) external onlyOwner {
-    require(reward > 0);
-
-    rewardForPlayedMinute = reward;
-
-    emit RewardForPlayedMinutesChanged(rewardForPlayedMinute);
   }
 
   function _artistUnclaimedAmount(uint256 playedMinutes, uint256 claimedMinutes) internal view returns(uint256) {
