@@ -159,7 +159,9 @@ npx hardhat test
 To run the subgraph tests:
 * navigate to `justicantus-subgraph`
 * make sure docker is running
-* run tests with `graph build && graph codegen && yarn test --docker --version 0.5.4`
+* run tests with `graph codegen && graph build && yarn test --docker --version 0.5.4`
+
+(or `graph codegen && graph build && yarn test` without using Docker)
 
 ## Contributions
 
