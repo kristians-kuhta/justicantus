@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
-import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import { VRFCoordinatorV2Interface } from "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import { VRFConsumerBaseV2 } from "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
 
 contract ResourceRegistration is VRFConsumerBaseV2 {
   enum ResourceType {
@@ -144,7 +144,7 @@ contract ResourceRegistration is VRFConsumerBaseV2 {
     } else if (registration.resourceType == ResourceType.Song) {
       _completeSongRegistration(registration);
     } else {
-      revert('Unsupported registration');
+      revert("Unsupported registration");
     }
   }
 
