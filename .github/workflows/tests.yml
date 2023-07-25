@@ -14,9 +14,19 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18.16.0
-      - name: Install dependencies
+      - name: Install Hardhat project dependencies
         run: npm install
       - name: Run Hardhat tests
         run: npx hardhat test
+      - name: Change directory to subgraph
+        run: cd justicantus-subgraph
+      - name: Install subgraph project dependencies
+        run: yarn
+      - name: Generate subgraph code
+        run: yarn codegen
+      - name: Build subgraph
+        run: yarn build
+      - name: Run subgraph tests
+        run: yarn test -c
 
 
