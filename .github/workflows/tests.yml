@@ -18,15 +18,6 @@ jobs:
         run: npm install
       - name: Run Hardhat tests
         run: npx hardhat test
-      - name: Change directory to subgraph
-        run: cd justicantus-subgraph
-      - name: Install subgraph project dependencies
-        run: yarn
-      - name: Generate subgraph code
-        run: yarn codegen
-      - name: Build subgraph
-        run: yarn build
-      - name: Run subgraph tests
-        run: yarn test -c
-
+      - name: Prepare subgraph for running tests, run tests
+        run: cd justicantus-subgraph && yarn && yarn codegen && yarn build && yarn test -c
 
