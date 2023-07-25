@@ -16,6 +16,8 @@ jobs:
           node-version: 18.16.0
       - name: Install Hardhat project dependencies
         run: npm install
+      - name: Run Solhint
+        run: npx solhint 'contracts/**/*.sol'
       - name: Run Hardhat tests
         run: npx hardhat clean && npx hardhat test
       - name: Prepare subgraph for running tests, run tests
