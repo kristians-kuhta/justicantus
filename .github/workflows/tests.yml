@@ -17,7 +17,7 @@ jobs:
       - name: Install Hardhat project dependencies
         run: npm install
       - name: Run Hardhat tests
-        run: npx hardhat test
+        run: npx hardhat clean && npx hardhat test
       - name: Prepare subgraph for running tests, run tests
         run: cd justicantus-subgraph && yarn && yarn codegen && yarn build && yarn test -c
 
