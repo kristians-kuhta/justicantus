@@ -11,7 +11,7 @@ task(
     const contractAddresses = require('./build/contract-addresses.json');
 
     // TODO: possibly reuse most of this tasks logic in tests
-    const { VRF_COORDINATOR, SUBSCRIPTION_ID, KEY_HASH } = process.env;
+    const { VRF_COORDINATOR } = process.env;
 
     const Platform = await ethers.getContractFactory("Platform");
     const platform = await Platform.attach(contractAddresses.Platform);
