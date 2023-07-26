@@ -21,6 +21,15 @@ Frontend both communicates directly with the Ethereum node via JSON RPC and also
 
 Here are the things that you need to do in order to start up the development environment.
 
+## Populate the .env file
+
+Go ahead and copy `.env.example` file to `.env` file located at the root of the Hardhat project.
+
+Most of these values are needed to connect to the Chainlink VRF on mainnet, but `VRF_COORDINATOR` is being used when running local `vrf_fulfill` task.
+So initially you can leave the values unchanged after copying it, but once you run `bin/dev` (mentioned in below steps) you should take note of the deployed coordinator address and set the value of the `VRF_COORDINATOR` to it.
+
+Currently, this has to be done manually, although we might make this automatic in the future changes.
+
 ## Start Hardhat node and deploy contracts
 Clone the project, navigate to the project root directory, and run `npm install` to install the Hardhat project packages.
 
