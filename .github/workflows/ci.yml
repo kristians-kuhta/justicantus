@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Setup node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.16.0
+      - name: Install Hardhat project dependencies
+        run: npm install
+      - name: Run Solhint
+        run: npx solhint 'contracts/**/*.sol'
+      - name: Run Hardhat tests
+        env:
+          KEY_HASH: '0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c'
+        run: npx hardhat clean && npx hardhat test
+      - name: Prepare subgraph for running tests, run tests
+        run: cd justicantus-subgraph && yarn && yarn codegen && yarn build && yarn test -c
+

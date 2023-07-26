@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import "./ResourceRegistration.sol";
-import "./Subscription.sol";
-import "./Reporter.sol";
-import "./PlayedMinutesReward.sol";
+import { ResourceRegistration } from "./ResourceRegistration.sol";
+import { Subscription } from "./Subscription.sol";
+import { Reporter } from "./Reporter.sol";
+import { PlayedMinutesReward } from "./PlayedMinutesReward.sol";
 
 contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscription,
   Reporter, PlayedMinutesReward {
@@ -85,7 +85,7 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscriptio
 
     uint256 unclaimedAmount = _artistUnclaimedAmount(playedMinutes, claimedMinutes);
 
-    (bool success,) = payable(msg.sender).call{ value: unclaimedAmount }('');
+    (bool success,) = payable(msg.sender).call{ value: unclaimedAmount }("");
     require(success);
 
     artistClaimedMinutes[msg.sender] = playedMinutes + claimedMinutes;
