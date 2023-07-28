@@ -4,9 +4,9 @@ pragma solidity 0.8.19;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PlayedMinutesReward is Ownable {
-  event RewardForPlayedMinutesChanged(uint256 indexed reward);
-
   uint256 public rewardForPlayedMinute;
+
+  event RewardForPlayedMinutesChanged(uint256 indexed reward);
 
   constructor() {
     // Default value: approximately 0.01 eth / 30 days / 24 hours / 60 minutes

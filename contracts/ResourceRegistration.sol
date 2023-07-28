@@ -24,25 +24,6 @@ contract ResourceRegistration is VRFConsumerBaseV2 {
     string data;
   }
 
-  event RegistrationCreated(
-    address indexed account,
-    ResourceType indexed resourceType,
-    uint256 indexed requestId
-  );
-
-  // Data is either artist name or song uri
-  event ResourceRegistered(
-    address indexed account,
-    ResourceType indexed resourceType,
-    uint256 indexed id,
-    string data
-  );
-
-  error ArtistNameRequired();
-  error ArtistAlreadyRegistered();
-  error SongUriRequired();
-  error NotARegisteredArtist();
-
   mapping(uint256 id => string name) public artistNames;
   mapping(address account => uint256 id) public artistIds;
 
@@ -62,6 +43,25 @@ contract ResourceRegistration is VRFConsumerBaseV2 {
   uint16 private constant REQUEST_CONFIRMATIONS = 3;
   uint32 private constant NUM_WORDS = 1;
 
+  event RegistrationCreated(
+    address indexed account,
+    ResourceType indexed resourceType,
+    uint256 indexed requestId
+  );
+
+  // Data is either artist name or song uri
+  event ResourceRegistered(
+    address indexed account,
+    ResourceType indexed resourceType,
+    uint256 indexed id,
+    string data
+  );
+
+  error ArtistNameRequired();
+  error ArtistAlreadyRegistered();
+  error SongUriRequired();
+  error NotARegisteredArtist();
+
   constructor(
     address _vrfCoordinator,
     uint64 _subscriptionId,
@@ -72,36 +72,52 @@ contract ResourceRegistration is VRFConsumerBaseV2 {
     keyHash = _keyHash;
   }
 
-  function _requireArtistName(string calldata name) internal pure {
-    if (bytes(name).length == 0) {
-      revert ArtistNameRequired();
-    }
-  }
-
-  function _requireNotRegistered() internal view {
-    if (artistIds[msg.sender] > 0) {
-      revert ArtistAlreadyRegistered();
-    }
-  }
-
-  function _requireUri(string calldata uri) internal pure {
-    if (bytes(uri).length == 0) {
-      revert SongUriRequired();
-    }
-  }
-
-  function _requireRegisteredArtist() internal view {
-    if (artistIds[msg.sender] == 0) {
-      revert NotARegisteredArtist();
-    }
-  }
-
   function registerArtist(string calldata name) external {
     _requireArtistName(name);
     _requireNotRegistered();
 
     _createResourceRegistration(ResourceType.Artist, name);
   }
+
+  function registerSong(string calldata uri) external {
+    _requireUri(uri);
+    _requireRegisteredArtist();
+
+    _createResourceRegistration(ResourceType.Song, uri);
+  }
+
+  // ++++++++++++++++View/Pure functions +++++++++++++++
+  function getArtistId(address account) external view returns (uint256) {
+    return artistIds[account];
+  }
+
+  function getArtistName(address account) external view returns (string memory) {
+    return artistNames[artistIds[account]];
+  }
+
+  function getSongUri(uint256 songId) external view returns (string memory) {
+    return songURIs[songId];
+  }
+
+  function getArtistSongId(address artist, uint256 songIndex) external view returns (uint256) {
+    return songIds[artist][songIndex];
+  }
+
+  function isArtistSong(address artist, uint256 songId) external view returns (bool) {
+    uint256 artistSongsCount = songsCount[artist];
+    for(uint256 i; i < artistSongsCount; i++) {
+      if (songIds[artist][i] == songId) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function getArtistSongsCount(address artist) external view returns (uint256) {
+    return songsCount[artist];
+  }
+
+ // +++++++++++++++++++++++++++++++++++++++++++++++++
 
   function _completeArtistRegistration(Registration memory registration) internal {
     artistNames[registration.generatedId] = registration.data;
@@ -170,42 +186,29 @@ contract ResourceRegistration is VRFConsumerBaseV2 {
     registration.data = data;
   }
 
-  function registerSong(string calldata uri) external {
-    _requireUri(uri);
-    _requireRegisteredArtist();
 
-    _createResourceRegistration(ResourceType.Song, uri);
-  }
-
-  // ++++++++++++++++View/Pure functions +++++++++++++++
-  function getArtistId(address account) external view returns (uint256) {
-    return artistIds[account];
-  }
-
-  function getArtistName(address account) external view returns (string memory) {
-    return artistNames[artistIds[account]];
-  }
-
-  function getSongUri(uint256 songId) external view returns (string memory) {
-    return songURIs[songId];
-  }
-
-  function getArtistSongId(address artist, uint256 songIndex) external view returns (uint256) {
-    return songIds[artist][songIndex];
-  }
-
-  function isArtistSong(address artist, uint256 songId) external view returns (bool) {
-    uint256 artistSongsCount = songsCount[artist];
-    for(uint256 i; i < artistSongsCount; i++) {
-      if (songIds[artist][i] == songId) {
-        return true;
-      }
+  function _requireNotRegistered() internal view {
+    if (artistIds[msg.sender] > 0) {
+      revert ArtistAlreadyRegistered();
     }
-    return false;
   }
 
-  function getArtistSongsCount(address artist) external view returns (uint256) {
-    return songsCount[artist];
+  function _requireRegisteredArtist() internal view {
+    if (artistIds[msg.sender] == 0) {
+      revert NotARegisteredArtist();
+    }
   }
- // +++++++++++++++++++++++++++++++++++++++++++++++++
+
+  function _requireArtistName(string calldata name) internal pure {
+    if (bytes(name).length == 0) {
+      revert ArtistNameRequired();
+    }
+  }
+
+  function _requireUri(string calldata uri) internal pure {
+    if (bytes(uri).length == 0) {
+      revert SongUriRequired();
+    }
+  }
+
 }
