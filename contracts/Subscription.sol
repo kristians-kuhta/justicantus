@@ -4,6 +4,9 @@ pragma solidity 0.8.19;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Subscription is Ownable {
+  mapping(address account => uint256 expirationTimestamp) public subscriptions;
+  mapping(uint256 price => uint256 interval) public subscriptionPlanIntervals;
+
   event SubscriptionCreated(
     address indexed account,
     uint256 indexed expirationTimestamp,
@@ -21,30 +24,6 @@ contract Subscription is Ownable {
   error SubscriptionAlreadyCreated();
   error SubscriptionNotCreated();
   error ValueMustMatchOneOfThePlans();
-
-  mapping(address account => uint256 expirationTimestamp) public subscriptions;
-  mapping(uint256 price => uint256 interval) public subscriptionPlanIntervals;
-
-  // +++++++++++++++ Validation functions ++++++++++++++++++
-  function _requireSubscriptionNotCreated() internal view {
-    if (subscriptions[msg.sender] > 0) {
-      revert SubscriptionAlreadyCreated();
-    }
-  }
-
-  function _requireSubscriptionCreated() internal view {
-    if (subscriptions[msg.sender] == 0) {
-      revert SubscriptionNotCreated();
-    }
-  }
-
-  function _requireValueMatchesOneOfThePlans(uint256 subscriptionInterval) internal pure {
-    if (subscriptionInterval == 0) {
-      revert ValueMustMatchOneOfThePlans();
-    }
-  }
-
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   // ++++++++++++++++ External functions +++++++++++++++++
   function createSubscription() external payable {
@@ -90,9 +69,30 @@ contract Subscription is Ownable {
   }
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  // ++++++++++++++++ View/Pure functions +++++++++++++++++++
+  // ++++++++++++++++ External View/Pure functions +++++++++++++++++++
   function isActiveSubscriber(address account) external view returns (bool) {
     return subscriptions[account] >= block.timestamp;
   }
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  // +++++++++++++++ Validation functions ++++++++++++++++++
+  function _requireSubscriptionNotCreated() internal view {
+    if (subscriptions[msg.sender] > 0) {
+      revert SubscriptionAlreadyCreated();
+    }
+  }
+
+  function _requireSubscriptionCreated() internal view {
+    if (subscriptions[msg.sender] == 0) {
+      revert SubscriptionNotCreated();
+    }
+  }
+
+  function _requireValueMatchesOneOfThePlans(uint256 subscriptionInterval) internal pure {
+    if (subscriptionInterval == 0) {
+      revert ValueMustMatchOneOfThePlans();
+    }
+  }
+
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++
 }
