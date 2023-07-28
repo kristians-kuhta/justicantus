@@ -67,7 +67,11 @@ task(
   }
 );
 
-const { RPC_PROVIDER_URL, SEPOLIA_PRIVATE_KEY }  = process.env;
+const {
+  RPC_PROVIDER_URL,
+  SEPOLIA_PRIVATE_KEY,
+  ETHERSCAN_API_KEY
+}  = process.env;
 
 module.exports = {
   solidity: "0.8.19",
@@ -82,5 +86,8 @@ module.exports = {
       url: RPC_PROVIDER_URL || '',
       accounts: [SEPOLIA_PRIVATE_KEY || '']
     }
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY
   }
 };
