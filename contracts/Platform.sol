@@ -51,10 +51,10 @@ contract Platform is Ownable, ReentrancyGuard, ResourceRegistration, Subscriptio
 
     uint256 unclaimedAmount = _artistUnclaimedAmount(playedMinutes, claimedMinutes);
 
+    artistClaimedMinutes[msg.sender] = playedMinutes + claimedMinutes;
+
     (bool success,) = payable(msg.sender).call{ value: unclaimedAmount }("");
     require(success);
-
-    artistClaimedMinutes[msg.sender] = playedMinutes + claimedMinutes;
 
     emit RewardsClaimed(msg.sender, unclaimedAmount);
   }
