@@ -65,12 +65,20 @@ task(
   }
 );
 
+const { RPC_PROVIDER_URL, SEPOLIA_PRIVATE_KEY }  = process.env;
+
 module.exports = {
   solidity: "0.8.19",
   settings: {
     optimizer: {
       enabled: true,
       runs: 400,
+    }
+  },
+  networks: {
+    sepolia: {
+      url: RPC_PROVIDER_URL || '',
+      accounts: [SEPOLIA_PRIVATE_KEY || '']
     }
   }
 };
