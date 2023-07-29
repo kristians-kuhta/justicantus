@@ -6,9 +6,9 @@ dataSources:
     name: Platform
     network: mainnet
     source:
-      address: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+      address: "0x5b277792523542BDBeaf189e8345B7D38800200b"
       abi: Platform
-      startBlock: 0
+      startBlock: 3987335
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.7
