@@ -39,6 +39,10 @@ const ArtistDashboard = () => {
     setProgress(0);
   };
 
+  const unclaimedMinutes = useCallback(() => {
+    return playedMinutes - claimedMinutes;
+  }, [playedMinutes, claimedMinutes]);
+
   const setMinuteStats = useCallback(() => {
     platform.artistPlayedMinutes(artistAddress).then(setPlayedMinutes);
     platform.artistClaimedMinutes(artistAddress).then(setClaimedMinutes);
@@ -52,15 +56,11 @@ const ArtistDashboard = () => {
       setClaimedAmount(claimedAmountEth);
       setUnclaimedAmount(unclaimedAmountEth);
     });
-  }, [platform, artistAddress, claimedMinutes]);
+  }, [platform, artistAddress, claimedMinutes, unclaimedMinutes]);
 
   useEffect(() => {
     setMinuteStats();
   }, [setMinuteStats]);
-
-  const unclaimedMinutes = () => {
-    return playedMinutes - claimedMinutes;
-  };
 
   return <div className='mt-5 d-flex flex-column align-items-center'>
     <p>Total played minutes: {playedMinutes.toString()}</p>
