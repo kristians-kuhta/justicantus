@@ -13,7 +13,7 @@ import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import {
-  createBrowserRouter,
+  createHashRouter,
   RouterProvider,
 } from "react-router-dom";
 
@@ -35,7 +35,7 @@ const apolloClient = new ApolloClient({
 });
 
 // TODO: consider extracting this to another file
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: "/",
     element: <App />,
