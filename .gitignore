@@ -16,9 +16,6 @@ justicantus_subgraph/tests/.docker
 justicantus_subgraph/build
 justicantus_subgraph/generated
 
-frontend/src/contracts
-cloud_functions/contracts
-
 cloud_functions/package-lock.json
 
 
