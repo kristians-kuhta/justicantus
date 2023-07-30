@@ -13,6 +13,7 @@ const ArtistDashboard = () => {
   const [playedMinutes, setPlayedMinutes] = useState(0);
   const [claimedMinutes, setClaimedMinutes] = useState(0);
   const [claimedAmount, setClaimedAmount] = useState(0);
+  const [unclaimedAmount, setUnclaimedAmount] = useState(0);
   const [progress, setProgress] = useState(0);
 
   const handleClaimRewards = async () => {
@@ -44,7 +45,12 @@ const ArtistDashboard = () => {
     platform.rewardForPlayedMinute().then((reward) => {
       const claimedAmountWei = claimedMinutes * reward;
       const claimedAmountEth = ethers.utils.formatEther(claimedAmountWei);
-      setClaimedAmount(`${claimedAmountEth} ETH`);
+
+      const unclaimedAmountWei = unclaimedMinutes() * reward;
+      const unclaimedAmountEth = ethers.utils.formatEther(unclaimedAmountWei);
+
+      setClaimedAmount(claimedAmountEth);
+      setUnclaimedAmount(unclaimedAmountEth);
     });
   }, [platform, artistAddress, claimedMinutes]);
 
@@ -59,11 +65,12 @@ const ArtistDashboard = () => {
   return <div className='mt-5 d-flex flex-column align-items-center'>
     <p>Total played minutes: {playedMinutes.toString()}</p>
     <p>Total claimed minutes: {claimedMinutes.toString()}</p>
-    <p>Total claimed amount: {claimedAmount.toString()}</p>
+    <p>Total claimed amount: {claimedAmount.toString()} ETH</p>
     <div>
       <p>Unclaimed minutes: {unclaimedMinutes()}</p>
       { unclaimedMinutes() > 0 && <Button onClick={handleClaimRewards}>Claim rewards</Button> }
     </div>
+    <p>Total unclaimed amount: {unclaimedAmount.toString()} ETH</p>
     { progress > 0 && progress < 100 && <ProgressBar className="mt-3" animated now={progress} /> }
   </div>;
 };
