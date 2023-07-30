@@ -4,7 +4,7 @@ schema:
 dataSources:
   - kind: ethereum
     name: Platform
-    network: mainnet
+    network: sepolia
     source:
       address: "0x5b277792523542BDBeaf189e8345B7D38800200b"
       abi: Platform
