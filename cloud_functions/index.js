@@ -170,6 +170,11 @@ functions.cloudEvent('updatePlayedMinutes', async (_event) => {
     }
 
     const prevPlayedSeconds = artistPlayedSeconds[artistAddress] || 0;
+
+    // NOTE: The smart contract expects that we are going to submit only updates.
+    //       That does make sense, otherwise we are just wasting gas to submit no-change of played minutes.
+    if (prevPlayedSeconds >= secondsPlayed) return;
+
     artistPlayedSeconds[artistAddress] = prevPlayedSeconds + secondsPlayed;
   }));
 
