@@ -20,11 +20,11 @@ const CHAINS = {
     decimal: 31337,
     name: 'Local hardhat network'
   },
-  // Polygon Mumbai testnet
+  // Sepolia
   production: {
-    hex: '0x12a',
-    decimal: 80001,
-    name: 'Polygon Mumbai testnet'
+    hex: '0xaa36a7',
+    decimal: 11155111,
+    name: 'Sepolia'
   }
 };
 
