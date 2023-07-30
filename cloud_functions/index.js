@@ -171,23 +171,24 @@ functions.cloudEvent('updatePlayedMinutes', async (_event) => {
 
     const prevPlayedSeconds = artistPlayedSeconds[artistAddress] || 0;
 
-    // NOTE: The smart contract expects that we are going to submit only updates.
-    //       That does make sense, otherwise we are just wasting gas to submit no-change of played minutes.
-    if (prevPlayedSeconds >= secondsPlayed) return;
-
     artistPlayedSeconds[artistAddress] = prevPlayedSeconds + secondsPlayed;
   }));
 
-  const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistAddress) => {
-    const playedSeconds = artistPlayedSeconds[artistAddress];
-    const playedMinutes = Math.floor(playedSeconds / 60);
-    return playedMinutes === 0 ? null : { artist: artistAddress, playedMinutes };
-  }).filter(e => e !== null);
+  const artistPlayedMinutes = (
+    await Promise.all(Object.keys(artistPlayedSeconds).map(async (artistAddress) => {
+      const playedSeconds = artistPlayedSeconds[artistAddress];
+      const playedMinutes = Math.floor(playedSeconds / 60);
+      const prevPlayedMinutes = await platform.artistPlayedMinutes(artistAddress);
+      const playedMinutesObject = { artist: artistAddress, playedMinutes };
+
+      return playedMinutes === 0 || prevPlayedMinutes >= playedMinutes ? null : playedMinutesObject;
+    }))
+  ).filter(e => e !== null);
 
   // NOTE: if tx is reverted this should throw an error
   if (artistPlayedMinutes.length > 0) {
     // TODO: figure out actual amount of gas used here
-    await (await platform.updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
+    await (await platform.connect(reporterWallet).updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
   }
 });
 
