@@ -62,7 +62,7 @@ const ArtistDashboard = () => {
     <p>Total claimed amount: {claimedAmount.toString()}</p>
     <div>
       <p>Unclaimed minutes: {unclaimedMinutes()}</p>
-      { unclaimedMinutes > 0 && <Button onClick={handleClaimRewards}>Claim rewards</Button> }
+      { unclaimedMinutes() > 0 && <Button onClick={handleClaimRewards}>Claim rewards</Button> }
     </div>
     { progress > 0 && progress < 100 && <ProgressBar className="mt-3" animated now={progress} /> }
   </div>;
