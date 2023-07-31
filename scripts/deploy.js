@@ -6,7 +6,8 @@ function saveFrontendFiles(platform) {
   const contractsDirs = [
     "../frontend/src/contracts",
     "../cloud_functions/contracts",
-    "../build"
+    "../build",
+    "../justicantus-subgraph/abis"
   ];
 
   // `artifacts` is a helper property provided by Hardhat to read artifacts
@@ -44,12 +45,12 @@ async function main() {
     NODE_ENV
   } = process.env;
 
-  const vrfAdmin = await ethers.getImpersonatedSigner(VRF_ADMIN);
-
   let coordinator;
   let subscriptionId;
 
   if (hre.network.name === 'localhost') {
+    const vrfAdmin = await ethers.getImpersonatedSigner(VRF_ADMIN);
+
     const BASE_FEE = '100000000000000000';
     const GAS_PRICE_LINK = '1000000000';
     const SUBSCRIPTION_BALANCE = '10000000000000000000'; // 10 LINK
@@ -77,14 +78,16 @@ async function main() {
 
   await platform.deployed();
 
-  console.log('[Deploy] Platform deployed...');
-  console.log('[Deploy] Adding a consumer...');
+  if (hre.network.name === 'localhost') {
+    console.log('[Deploy] Platform deployed...');
+    console.log('[Deploy] Adding a consumer...');
 
-  await (
-    await coordinator.connect(vrfAdmin).addConsumer(subscriptionId, platform.address, { gasLimit: 300000})
-  ).wait();
+    await (
+      await coordinator.connect(vrfAdmin).addConsumer(subscriptionId, platform.address, { gasLimit: 300000})
+    ).wait();
 
-  console.log('[Deploy] Consumer added...');
+    console.log('[Deploy] Consumer added...');
+  }
   console.log('[Deploy] Saving deploy artifacts...');
 
   saveFrontendFiles(platform);

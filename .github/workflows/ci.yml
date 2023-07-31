@@ -21,6 +21,7 @@ jobs:
       - name: Run Hardhat tests
         env:
           KEY_HASH: '0x474e34a077df58807dbe9c96d3c009b23b3c6d0cce433e59bbf5b34f823bc56c'
+          SEPOLIA_PRIVATE_KEY: ${{ secrets.SEPOLIA_PRIVATE_KEY }}
         run: npx hardhat clean && npx hardhat test
       - name: Prepare subgraph for running tests, run tests
         run: cd justicantus-subgraph && yarn && yarn codegen && yarn build && yarn test -c

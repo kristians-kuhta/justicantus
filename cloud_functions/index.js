@@ -129,12 +129,7 @@ functions.http('pinFile', (req, res) => {
   busboy.end(req.rawBody);
 });
 
-functions.http('updatePlayedMinutes', async (req, res) => {
-  if (req.method !== 'POST') {
-    // Return a "method not allowed" error
-    return res.status(405).end();
-  }
-
+functions.cloudEvent('updatePlayedMinutes', async (_event) => {
   const {
     INFURA_URL,
     REPORTER_PRIVATE_KEY,
@@ -149,9 +144,7 @@ functions.http('updatePlayedMinutes', async (req, res) => {
   const collectionSnapshot = await firestore.collection("songPlayRecords").get();
   const { docs } = collectionSnapshot;
 
-  if (docs.length === 0) {
-    return res.status(200).send('No updates where made');
-  }
+  if (docs.length === 0) return;
 
   let artistPlayedSeconds = {};
 
@@ -177,24 +170,25 @@ functions.http('updatePlayedMinutes', async (req, res) => {
     }
 
     const prevPlayedSeconds = artistPlayedSeconds[artistAddress] || 0;
+
     artistPlayedSeconds[artistAddress] = prevPlayedSeconds + secondsPlayed;
   }));
 
-  const artistPlayedMinutes = Object.keys(artistPlayedSeconds).map((artistAddress) => {
-    const playedSeconds = artistPlayedSeconds[artistAddress];
-    const playedMinutes = Math.floor(playedSeconds / 60);
-    return playedMinutes === 0 ? null : { artist: artistAddress, playedMinutes };
-  }).filter(e => e !== null);
+  const artistPlayedMinutes = (
+    await Promise.all(Object.keys(artistPlayedSeconds).map(async (artistAddress) => {
+      const playedSeconds = artistPlayedSeconds[artistAddress];
+      const playedMinutes = Math.floor(playedSeconds / 60);
+      const prevPlayedMinutes = await platform.artistPlayedMinutes(artistAddress);
+      const playedMinutesObject = { artist: artistAddress, playedMinutes };
 
-  try {
-    if (artistPlayedMinutes.length > 0) {
-      // TODO: figure out actual amount of gas used here
-      await (await platform.updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
-    }
-    res.status(200).send('Done');
-  } catch (e) {
-    console.error(e);
-    return res.status(422).send('Could not update played minutes');
+      return playedMinutes === 0 || prevPlayedMinutes >= playedMinutes ? null : playedMinutesObject;
+    }))
+  ).filter(e => e !== null);
+
+  // NOTE: if tx is reverted this should throw an error
+  if (artistPlayedMinutes.length > 0) {
+    // TODO: figure out actual amount of gas used here
+    await (await platform.connect(reporterWallet).updatePlayedMinutes(artistPlayedMinutes, { gasLimit: 3000000 })).wait();
   }
 });
 

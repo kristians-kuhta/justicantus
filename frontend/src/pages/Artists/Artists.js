@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from 'react-bootstrap/Button';
 import ListGroup from 'react-bootstrap/ListGroup';
@@ -18,7 +18,8 @@ const ARTISTS_QUERY = gql`
 const Artists = () => {
   const [artistsFound, setArtistsFound] = useState(null);
 
-  const { loading, error, data } = useQuery(ARTISTS_QUERY);
+  // TODO: handle the case when `error` is present here
+  const { loading, data } = useQuery(ARTISTS_QUERY);
 
   const handleSearch = async (evt) => {
     evt.preventDefault();
