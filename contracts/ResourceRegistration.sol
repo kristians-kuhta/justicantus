@@ -34,7 +34,7 @@ contract ResourceRegistration is VRFConsumerBaseV2 {
   // Requests are used for generating IDs (both for an artists and a song)
   mapping(uint256 requestId => Registration registration) private registrations;
 
-  VRFCoordinatorV2Interface immutable vrfCoordinator;
+  VRFCoordinatorV2Interface private immutable vrfCoordinator;
   uint64 private immutable subscriptionId;
   bytes32 private immutable keyHash;
 
